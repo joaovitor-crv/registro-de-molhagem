@@ -292,14 +292,15 @@ begin
   update molh_trajetos set status = 'cancelado', encerrado_por = u.id where id = t.id;
 end $$;
 
--- ---------- Cadastros (admin) ----------
+-- ---------- Cadastros (criar: admin e operador; alterar e remover: admin) ----------
 create or replace function molh_salvar_ponto(p_token text, p_id bigint, p_nome text, p_trecho text, p_km text, p_intervalo integer)
 returns bigint language plpgsql security definer
 set search_path = public as $$
 declare u molh_usuarios; nid bigint;
 begin
   u := molh__sessao(p_token);
-  if u.papel <> 'admin' then raise exception 'SEM_PERMISSAO'; end if;
+  -- operador pode criar; alterar continua só com o administrador
+  if not (u.papel = 'admin' or (u.papel = 'operador' and p_id is null)) then raise exception 'SEM_PERMISSAO'; end if;
   if coalesce(trim(p_nome),'') = '' then raise exception 'NOME_VAZIO'; end if;
   if coalesce(p_intervalo,0) < 15 then raise exception 'INTERVALO_INVALIDO'; end if;
   if p_id is null then
@@ -330,7 +331,8 @@ set search_path = public as $$
 declare u molh_usuarios; nid bigint;
 begin
   u := molh__sessao(p_token);
-  if u.papel <> 'admin' then raise exception 'SEM_PERMISSAO'; end if;
+  -- operador pode criar; alterar continua só com o administrador
+  if not (u.papel = 'admin' or (u.papel = 'operador' and p_id is null)) then raise exception 'SEM_PERMISSAO'; end if;
   if coalesce(trim(p_prefixo),'') = '' then raise exception 'PREFIXO_VAZIO'; end if;
   if p_id is null then
     insert into molh_frotas(prefixo, descricao, capacidade_l)

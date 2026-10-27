@@ -403,7 +403,7 @@ function renderPainel(){
   $("#kpis").innerHTML=$("#kpis").innerHTML.replace(/(<div class="kpi"><div class="lbl">Molhagens)/,`<div class="kpi"><div class="lbl">Frotas em trajeto</div><div class="val">${ativos.length}</div></div>$1`);
   renderTrips(now,ativos);
   const reg=canReg();
-  if(!S.pontos.length){$("#cards").innerHTML=`<div class="empty">Nenhum ponto cadastrado ainda.${canAdmin()?" Cadastre os trechos em <b>Frotas e pontos</b> para começar.":" O administrador ainda vai cadastrar os trechos."}</div>`;}
+  if(!S.pontos.length){$("#cards").innerHTML=`<div class="empty">Nenhum ponto cadastrado ainda.${canReg()?" Cadastre os trechos em <b>Frotas e pontos</b> para começar.":" Os trechos ainda vão ser cadastrados."}</div>`;}
   else $("#cards").innerHTML=infos.map(i=>{
     const p=i.p; const fr=i.last?byId(S.frotas,i.last.frota_id):null;
     const w=Math.min(100,(i.ratio||0)*100);
@@ -495,14 +495,14 @@ function renderHistorico(){
 }
 
 function renderCadastros(){
-  if(!canAdmin())return;
+  if(!canReg())return;const adm=canAdmin();
   $("#pTable").innerHTML=`<thead><tr><th>Ponto</th><th>Trecho</th><th class="num">Intervalo</th><th></th></tr></thead><tbody>`+
     (S.pontos.length?S.pontos.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td>${esc([p.trecho,p.km].filter(Boolean).join(" · ")||"—")}</td>
-      <td class="num"><input type="number" min="15" step="15" value="${Number(p.intervalo_min)||120}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min</td>
-      <td><button class="btn danger small" data-del="ponto:${p.id}">Remover</button></td></tr>`).join("")
+      <td class="num">${adm?`<input type="number" min="15" step="15" value="${Number(p.intervalo_min)||120}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min`:fmtDur(Number(p.intervalo_min)||120)}</td>
+      <td>${adm?`<button class="btn danger small" data-del="ponto:${p.id}">Remover</button>`:""}</td></tr>`).join("")
     :`<tr><td colspan="4" style="color:var(--muted)">Nenhum ponto cadastrado.</td></tr>`)+"</tbody>";
   $("#fTable").innerHTML=`<thead><tr><th>Frota</th><th>Descrição</th><th class="num">Tanque</th><th></th></tr></thead><tbody>`+
-    (S.frotas.length?S.frotas.map(f=>`<tr><td><b>${esc(f.prefixo)}</b></td><td>${esc(f.descricao||"—")}</td><td class="num">${fmtL(f.capacidade_l)}</td><td><button class="btn danger small" data-del="frota:${f.id}">Remover</button></td></tr>`).join("")
+    (S.frotas.length?S.frotas.map(f=>`<tr><td><b>${esc(f.prefixo)}</b></td><td>${esc(f.descricao||"—")}</td><td class="num">${fmtL(f.capacidade_l)}</td><td>${adm?`<button class="btn danger small" data-del="frota:${f.id}">Remover</button>`:""}</td></tr>`).join("")
     :`<tr><td colspan="4" style="color:var(--muted)">Nenhuma frota cadastrada.</td></tr>`)+"</tbody>";
 }
 
@@ -531,7 +531,7 @@ async function carregarUsuarios(){if(!canAdmin())return;try{usuarios=await rpc("
 /* ---------- telas ---------- */
 const VIEWS=["vConfig","vLogin","vSenha","vApp"];
 function tela(v){VIEWS.forEach(x=>$("#"+x).hidden=x!==v);$("#tabs").hidden=v!=="vApp";$("#who").hidden=!perfil||v==="vLogin";}
-function allowed(){const v=["painel","historico"];if(canReg())v.push("registrar");if(canAdmin())v.push("cadastros","usuarios");return v;}
+function allowed(){const v=["painel","historico"];if(canReg())v.push("registrar");if(canReg())v.push("cadastros");if(canAdmin())v.push("usuarios");return v;}
 function aba(v){const ok=allowed();if(!ok.includes(v))v="painel";
   ["painel","registrar","historico","cadastros","usuarios"].forEach(x=>$("#v-"+x).hidden=x!==v);
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===v?"true":"false"));
@@ -546,7 +546,7 @@ async function entrar(){
   try{await carregar();}catch(e){if(e.message!=="SESSAO_EXPIRADA"){tela("vLogin");setMsg("#lMsg",msgErr(e),true);}return;}
   if(perfil.troca_senha){abrirSenha(true);return;}
   $("#whoName").textContent=perfil.nome;$("#whoRole").textContent=PAPEL[perfil.papel]||perfil.papel;
-  $("#tabReg").hidden=!canReg();$("#tabCad").hidden=!canAdmin();$("#tabUsr").hidden=!canAdmin();
+  $("#tabReg").hidden=!canReg();$("#tabCad").hidden=!canReg();$("#tabUsr").hidden=!canAdmin();
   $("#mQuando").value=toLocalInput(new Date());$("#tSaida").value=toLocalInput(new Date());
   tela("vApp");aba(location.hash.slice(1));
   if(perfil.papel==="consulta")banner("Seu acesso é de <b>consulta</b>: você acompanha o painel e o histórico, sem registrar molhagens.");
@@ -582,7 +582,7 @@ $("#fSenha").addEventListener("submit",async e=>{e.preventDefault();
 /* ---------- formulários ---------- */
 $("#fMol").addEventListener("submit",async e=>{e.preventDefault();
   const ponto=$("#mPonto").value,frota=$("#mFrota").value,q=$("#mQuando").value;
-  if(!ponto||!frota){setMsg("#mMsg","Escolha o ponto e a frota. Se a lista estiver vazia, peça ao administrador para cadastrá-los.",true);return;}
+  if(!ponto||!frota){setMsg("#mMsg","Escolha o ponto e a frota. Se a lista estiver vazia, cadastre-os em Frotas e pontos.",true);return;}
   if(!q){setMsg("#mMsg","Informe a data e a hora da molhagem.",true);return;}
   const quando=new Date(q);
   $("#mSave").disabled=true;
@@ -593,7 +593,7 @@ $("#fMol").addEventListener("submit",async e=>{e.preventDefault();
 });
 $("#fTraj").addEventListener("submit",async e=>{e.preventDefault();
   const frota=$("#tFrota").value,dest=$("#tDestino").value,q=$("#tSaida").value;
-  if(!frota||!dest){setMsg("#tMsg","Escolha a frota e o destino. Se a lista estiver vazia, peça ao administrador para cadastrá-los.",true);return;}
+  if(!frota||!dest){setMsg("#tMsg","Escolha a frota e o destino. Se a lista estiver vazia, cadastre-os em Frotas e pontos.",true);return;}
   if(!q){setMsg("#tMsg","Informe o horário da saída.",true);return;}
   const saida=new Date(q);$("#tSave").disabled=true;
   try{await rpc("molh_iniciar_trajeto",{p_token:token,p_frota:+frota,p_destino:+dest,p_origem:$("#tOrigem").value,p_saida:saida.toISOString(),p_motorista:$("#tMotorista").value,p_obs:$("#tObs").value});
