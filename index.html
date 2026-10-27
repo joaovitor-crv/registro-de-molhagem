@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Controle de Molhagem</title>
+<title>Controle de Poeira</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script>
@@ -25,7 +25,7 @@ img{max-width:100%}
   --fg:#0d2238; --muted:#4d6680;
   --navy:#0b2a4a; --navy-fg:#e6f0fa;
   --water:#1f6fd1; --water-soft:#d4e5f9; --sky:#5fa8f0;
-  --ok:#1f6fd1; --warn:#c98a12; --warn-soft:#fbefd6; --late:#c23a3a; --late-soft:#f8dddd;
+  --ok:#1f8a4c; --ok-soft:#dcf2e4; --warn:#c98a12; --warn-soft:#fbefd6; --late:#c23a3a; --late-soft:#f8dddd;
   --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
   --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -36,14 +36,14 @@ img{max-width:100%}
   --fg:#dceaf8; --muted:#8eaac6;
   --navy:#061a2e; --navy-fg:#dceaf8;
   --water:#5aa2f2; --water-soft:#163b62; --sky:#7fbaf5;
-  --ok:#5aa2f2; --warn:#e5a93a; --warn-soft:#3b2e12; --late:#ef6b6b; --late-soft:#3d1a1d;
+  --ok:#4cc283; --ok-soft:#143422; --warn:#e5a93a; --warn-soft:#3b2e12; --late:#ef6b6b; --late-soft:#3d1a1d;
   color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#07131f; --surface:#0e2135; --surface-2:#132b44; --line:#1f3d5c;
   --fg:#dceaf8; --muted:#8eaac6;
   --navy:#061a2e; --navy-fg:#dceaf8;
   --water:#5aa2f2; --water-soft:#163b62; --sky:#7fbaf5;
-  --ok:#5aa2f2; --warn:#e5a93a; --warn-soft:#3b2e12; --late:#ef6b6b; --late-soft:#3d1a1d;
+  --ok:#4cc283; --ok-soft:#143422; --warn:#e5a93a; --warn-soft:#3b2e12; --late:#ef6b6b; --late-soft:#3d1a1d;
   color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
@@ -97,7 +97,8 @@ h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.03e
 .card h3{margin:0;font-size:16px;font-weight:600;overflow-wrap:anywhere}
 .card .sub{font-size:13px;color:var(--muted);font-family:var(--mono)}
 .pill{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:99px;white-space:nowrap}
-.pill.ok{background:var(--water-soft);color:var(--water)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.trajeto{background:var(--water-soft);color:var(--water)}
 .pill.warn{background:var(--warn-soft);color:var(--warn)}
 .pill.late{background:var(--late-soft);color:var(--late)}
 .pill.none{background:var(--surface-2);color:var(--muted)}
@@ -106,7 +107,11 @@ h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.03e
 .elapsed .cap{font-size:13px;color:var(--muted)}
 .bar{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden;position:relative}
 .bar i{position:absolute;inset:0 auto 0 0;background:var(--water);border-radius:99px}
-.bar.warn i{background:var(--warn)} .bar.late i{background:var(--late)}
+.bar.ok i{background:var(--ok)} .bar.warn i{background:var(--warn)} .bar.late i{background:var(--late)}
+.card.st-ok{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.card.st-warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn-soft) 45%,var(--surface))}
+.card.st-late{border-color:var(--late);background:color-mix(in srgb,var(--late-soft) 45%,var(--surface))}
+.card.st-ok .elapsed .big{color:var(--ok)} .card.st-warn .elapsed .big{color:var(--warn)} .card.st-late .elapsed .big{color:var(--late)}
 .facts{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:13px;margin:0}
 .facts dt{color:var(--muted)} .facts dd{margin:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .btn{font:600 14px var(--body);border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--water);background:var(--water);color:#fff}
@@ -164,7 +169,7 @@ tr:last-child td{border-bottom:0}
 <header>
   <div class="wrap">
     <div class="brand">
-      <h1>Controle de Molhagem</h1>
+      <h1>Controle de Poeira</h1>
       <span class="clock" id="clock"></span>
       <span class="who" id="who" hidden><span id="whoName"></span><span class="role acc" id="whoRole"></span>
         <button class="hbtn" id="bSenha" type="button">Trocar senha</button><button class="hbtn" id="bSair" type="button">Sair</button></span>
@@ -196,7 +201,7 @@ tr:last-child td{border-bottom:0}
       <label>Senha<input id="lPass" type="password" autocomplete="current-password"></label>
       <div class="actions"><button class="btn" type="submit" id="lBtn">Entrar</button><span class="msg" id="lMsg" role="status"></span></div>
     </form>
-    <p style="margin:0;color:var(--muted);font-size:13px">Não tem usuário? Peça ao administrador do Controle de Molhagem.</p>
+    <p style="margin:0;color:var(--muted);font-size:13px">Não tem usuário? Peça ao administrador do Controle de Poeira.</p>
   </section>
 
   <!-- TROCA DE SENHA -->
@@ -221,7 +226,7 @@ tr:last-child td{border-bottom:0}
       <div class="grid" id="trips"></div>
     </div>
     <div class="sec">
-      <div class="sec-head"><h2>Pontos de molhagem</h2><span class="note">Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. O aviso começa 40 min antes de vencer.</span></div>
+      <div class="sec-head"><h2>Pontos de molhagem</h2><span class="note">Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido.</span></div>
       <div class="grid" id="cards"></div>
     </div>
     <div class="sec">
@@ -390,7 +395,7 @@ function pointInfo(p,now){
   const ratio=el/interval; const falta=interval-el; const status=falta<=0?"late":falta<=AVISO_MIN?"warn":"ok";
   return{p,last,lt,el,next,interval,avg,ratio,status};
 }
-const AVISO_MIN=40; // minutos antes do vencimento em que o ponto passa para "Molhar em breve"
+const AVISO_MIN=60; // minutos antes do vencimento em que o ponto passa para "Molhar em breve"
 const ST={ok:"Em dia",warn:"Molhar em breve",late:"Atrasado",none:"Sem registro"};
 
 /* ---------- render ---------- */
@@ -402,7 +407,7 @@ function renderPainel(){
   { const atr=infos.filter(i=>i.status==="late"), br=infos.filter(i=>i.status==="warn").sort((a,b)=>a.next-b.next);
     const al=$("#alerta"); const linhas=[];
     if(atr.length)linhas.push(`<div class="alerta late"><b class="t">${atr.length===1?"1 ponto atrasado":atr.length+" pontos atrasados"}</b><span>${atr.map(i=>`${esc(i.p.nome)} (atrasado ${fmtDur((now-i.next)/6e4)})`).join(" · ")}</span></div>`);
-    if(br.length)linhas.push(`<div class="alerta warn"><b class="t">Molhar nos próximos ${AVISO_MIN} min</b><span>${br.map(i=>`${esc(i.p.nome)} (vence ${fmtHM(i.next)}, em ${fmtDur((i.next-now)/6e4)})`).join(" · ")}</span></div>`);
+    if(br.length)linhas.push(`<div class="alerta warn"><b class="t">Molhar na próxima hora</b><span>${br.map(i=>`${esc(i.p.nome)} (vence ${fmtHM(i.next)}, em ${fmtDur((i.next-now)/6e4)})`).join(" · ")}</span></div>`);
     al.innerHTML=linhas.join(""); al.hidden=!linhas.length; }
   const d24=S.mol.filter(m=>now-new Date(m.quando)<864e5);
   const ativos=S.traj.filter(t=>t.status==="em_trajeto");
@@ -421,7 +426,7 @@ function renderPainel(){
     let prev="";
     if(i.last){const left=(i.next-now)/6e4;
       prev=left>=0?`${whenLabel(i.next)} <span style="color:var(--muted)">(em ${fmtDur(left)})</span>`:`<b style="color:var(--late)">${whenLabel(i.next)} · atrasada ${fmtDur(-left)}</b>`;}
-    return `<article class="card">
+    return `<article class="card st-${i.status}">
       <div class="card-top"><div class="t"><h3>${esc(p.nome)}</h3>
         <div class="sub">${esc([p.trecho,p.km].filter(Boolean).join(" · "))||"&nbsp;"}</div></div>
         <span class="pill ${i.status}">${ST[i.status]}</span></div>
@@ -452,7 +457,7 @@ function renderTrips(now,ativos){
   $("#trips").innerHTML=ativos.map(t=>{const f=byId(S.frotas,t.frota_id),d=byId(S.pontos,t.destino_id);const s=new Date(t.saida);
     const open=chegando===t.id;
     return `<article class="trip" data-tid="${t.id}">
-      <div class="card-top"><div class="t"><div class="tf">${esc(f?f.prefixo:"Frota removida")}</div></div><span class="pill ok">Em trajeto</span></div>
+      <div class="card-top"><div class="t"><div class="tf">${esc(f?f.prefixo:"Frota removida")}</div></div><span class="pill trajeto">Em trajeto</span></div>
       <div class="route"><span class="end">${esc(t.origem)}</span><span class="line" aria-hidden="true"></span><span class="end to">${esc(d?d.nome:"Ponto removido")}</span></div>
       <div class="meta">Saiu ${whenLabel(s)} · <b>há ${fmtDur((now-s)/6e4)}</b>${t.obs?`<br>${esc(t.obs)}`:""}</div>
       ${reg?(open?`<div class="chg"><label>Horário da chegada<input type="datetime-local" id="chg-${t.id}" value="${chegVal||toLocalInput(new Date())}"></label>

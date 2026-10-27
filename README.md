@@ -1,4 +1,4 @@
-# Controle de Molhagem
+# Controle de Poeira
 
 Acompanhamento da molhagem das estradas: cada molhagem registrada por ponto e frota, o tempo desde a última e a previsão da próxima.
 
