@@ -62,13 +62,33 @@ create table if not exists molh_molhagens (
 create index if not exists molh_molhagens_quando_idx on molh_molhagens (quando desc);
 create index if not exists molh_molhagens_ponto_idx  on molh_molhagens (ponto_id, quando desc);
 
+-- Frotas em trajeto: saída de um local (ex.: Base) até um ponto de molhagem
+create table if not exists molh_trajetos (
+  id            bigint generated always as identity primary key,
+  frota_id      bigint not null references molh_frotas(id),
+  destino_id    bigint not null references molh_pontos(id),
+  origem        text not null default 'Base',
+  saida         timestamptz not null,
+  chegada       timestamptz,
+  status        text not null default 'em_trajeto' check (status in ('em_trajeto','concluido','cancelado')),
+  motorista     text not null default '',
+  obs           text not null default '',
+  criado_por    bigint references molh_usuarios(id),
+  encerrado_por bigint references molh_usuarios(id),
+  criado_em     timestamptz not null default now()
+);
+create unique index if not exists molh_trajetos_frota_ativa on molh_trajetos (frota_id) where status = 'em_trajeto';
+create index if not exists molh_trajetos_saida_idx on molh_trajetos (saida desc);
+alter table molh_molhagens add column if not exists trajeto_id bigint references molh_trajetos(id);
+
 -- Ninguém acessa as tabelas direto pela internet: só pelas funções abaixo.
 alter table molh_usuarios  enable row level security;
 alter table molh_sessoes   enable row level security;
 alter table molh_pontos    enable row level security;
 alter table molh_frotas    enable row level security;
 alter table molh_molhagens enable row level security;
-revoke all on molh_usuarios, molh_sessoes, molh_pontos, molh_frotas, molh_molhagens from anon, authenticated;
+alter table molh_trajetos  enable row level security;
+revoke all on molh_usuarios, molh_sessoes, molh_pontos, molh_frotas, molh_molhagens, molh_trajetos from anon, authenticated;
 
 -- ---------- Sessão (uso interno) ----------
 create or replace function molh__sessao(p_token text)
@@ -169,9 +189,15 @@ begin
     'molhagens', coalesce((select jsonb_agg(jsonb_build_object(
         'id',m.id,'ponto_id',m.ponto_id,'frota_id',m.frota_id,'quando',m.quando,'volume_l',m.volume_l,
         'motorista',m.motorista,'condicao',m.condicao,'obs',m.obs,'criado_por',m.criado_por,
-        'lancado_por',coalesce(us.nome,'')) order by m.quando desc)
+        'lancado_por',coalesce(us.nome,''),'trajeto_id',m.trajeto_id,'saida',t.saida,'origem',t.origem) order by m.quando desc)
       from molh_molhagens m left join molh_usuarios us on us.id = m.criado_por
-      where m.quando > now() - make_interval(days => d)), '[]')
+      left join molh_trajetos t on t.id = m.trajeto_id
+      where m.quando > now() - make_interval(days => d)), '[]'),
+    'trajetos', coalesce((select jsonb_agg(jsonb_build_object(
+        'id',t.id,'frota_id',t.frota_id,'destino_id',t.destino_id,'origem',t.origem,'saida',t.saida,'chegada',t.chegada,
+        'status',t.status,'motorista',t.motorista,'obs',t.obs,'criado_por',t.criado_por,'lancado_por',coalesce(us.nome,'')) order by t.saida desc)
+      from molh_trajetos t left join molh_usuarios us on us.id = t.criado_por
+      where t.status = 'em_trajeto' or t.saida > now() - interval '24 hours'), '[]')
   );
 end $$;
 
@@ -205,6 +231,59 @@ begin
   if not found then raise exception 'NAO_ENCONTRADO'; end if;
   if u.papel <> 'admin' and not (u.papel = 'operador' and dono = u.id) then raise exception 'SEM_PERMISSAO'; end if;
   delete from molh_molhagens where id = p_id;
+end $$;
+
+-- ---------- Trajetos ----------
+create or replace function molh_iniciar_trajeto(p_token text, p_frota bigint, p_destino bigint, p_origem text,
+  p_saida timestamptz, p_motorista text, p_obs text)
+returns bigint language plpgsql security definer
+set search_path = public as $$
+declare u molh_usuarios; nid bigint;
+begin
+  u := molh__sessao(p_token);
+  if u.papel not in ('admin','operador') then raise exception 'SEM_PERMISSAO'; end if;
+  if not exists (select 1 from molh_frotas where id = p_frota and ativo) then raise exception 'FROTA_INVALIDA'; end if;
+  if not exists (select 1 from molh_pontos where id = p_destino and ativo) then raise exception 'PONTO_INVALIDO'; end if;
+  if p_saida is null or p_saida > now() + interval '5 minutes' then raise exception 'DATA_INVALIDA'; end if;
+  if exists (select 1 from molh_trajetos where frota_id = p_frota and status = 'em_trajeto') then raise exception 'FROTA_EM_TRAJETO'; end if;
+  insert into molh_trajetos(frota_id, destino_id, origem, saida, motorista, obs, criado_por)
+  values (p_frota, p_destino, coalesce(nullif(left(trim(p_origem),60),''),'Base'), p_saida,
+          left(coalesce(trim(p_motorista),''),80), left(coalesce(trim(p_obs),''),300), u.id)
+  returning id into nid;
+  return nid;
+end $$;
+
+-- Fecha o trajeto e registra a molhagem no ponto de destino
+create or replace function molh_concluir_trajeto(p_token text, p_id bigint, p_chegada timestamptz, p_obs text)
+returns bigint language plpgsql security definer
+set search_path = public as $$
+declare u molh_usuarios; t molh_trajetos; nid bigint;
+begin
+  u := molh__sessao(p_token);
+  if u.papel not in ('admin','operador') then raise exception 'SEM_PERMISSAO'; end if;
+  select * into t from molh_trajetos where id = p_id for update;
+  if t.id is null then raise exception 'NAO_ENCONTRADO'; end if;
+  if t.status <> 'em_trajeto' then raise exception 'TRAJETO_ENCERRADO'; end if;
+  if p_chegada is null or p_chegada > now() + interval '5 minutes' or p_chegada < t.saida then raise exception 'CHEGADA_INVALIDA'; end if;
+  update molh_trajetos set status = 'concluido', chegada = p_chegada, encerrado_por = u.id where id = t.id;
+  insert into molh_molhagens(ponto_id, frota_id, quando, motorista, obs, criado_por, trajeto_id)
+  values (t.destino_id, t.frota_id, p_chegada, t.motorista,
+          left(coalesce(nullif(trim(p_obs),''), t.obs),300), u.id, t.id)
+  returning id into nid;
+  return nid;
+end $$;
+
+create or replace function molh_cancelar_trajeto(p_token text, p_id bigint)
+returns void language plpgsql security definer
+set search_path = public as $$
+declare u molh_usuarios; t molh_trajetos;
+begin
+  u := molh__sessao(p_token);
+  if u.papel not in ('admin','operador') then raise exception 'SEM_PERMISSAO'; end if;
+  select * into t from molh_trajetos where id = p_id for update;
+  if t.id is null then raise exception 'NAO_ENCONTRADO'; end if;
+  if t.status <> 'em_trajeto' then raise exception 'TRAJETO_ENCERRADO'; end if;
+  update molh_trajetos set status = 'cancelado', encerrado_por = u.id where id = t.id;
 end $$;
 
 -- ---------- Cadastros (admin) ----------
@@ -322,7 +401,9 @@ grant execute on function
   molh_registrar(text,bigint,bigint,timestamptz,integer,text,text,text), molh_excluir_molhagem(text,bigint),
   molh_salvar_ponto(text,bigint,text,text,text,integer), molh_remover_ponto(text,bigint),
   molh_salvar_frota(text,bigint,text,text,integer), molh_remover_frota(text,bigint),
-  molh_usuarios_lista(text), molh_salvar_usuario(text,bigint,text,text,text,text,boolean)
+  molh_usuarios_lista(text), molh_salvar_usuario(text,bigint,text,text,text,text,boolean),
+  molh_iniciar_trajeto(text,bigint,bigint,text,timestamptz,text,text), molh_concluir_trajeto(text,bigint,timestamptz,text),
+  molh_cancelar_trajeto(text,bigint)
 to anon;
 
 -- ---------- >>> ADMINISTRADOR <<< ----------

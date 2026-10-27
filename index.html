@@ -71,6 +71,20 @@ h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.03e
 .kpi .val small{font-size:16px;color:var(--muted);font-weight:500}
 .kpi.late .val{color:var(--late)} .kpi.warn .val{color:var(--warn)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.trip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.trip .tf{font-family:var(--display);font-size:24px;font-weight:600;line-height:1;letter-spacing:.02em}
+.route{display:flex;align-items:center;gap:8px;font-size:14px;min-width:0}
+.route .end{flex:0 1 auto;min-width:0;overflow-wrap:anywhere}
+.route .end.to{font-weight:600}
+.route .line{flex:1 1 40px;min-width:40px;height:2px;background:repeating-linear-gradient(90deg,var(--water) 0 6px,transparent 6px 11px);position:relative}
+.route .line::after{content:"";position:absolute;top:-4px;left:0;width:10px;height:10px;border-radius:50%;background:var(--water)}
+@media (prefers-reduced-motion:no-preference){.route .line::after{animation:rodar 2.4s ease-in-out infinite}}
+@keyframes rodar{0%{left:0}100%{left:calc(100% - 10px)}}
+.trip .meta{font-size:13px;color:var(--muted)}
+.trip .meta b{color:var(--fg);font-variant-numeric:tabular-nums}
+.trip .chg{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.trip .chg label{flex:1 1 180px}
+.otw{font-size:13px;color:var(--water);font-weight:500}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .card-top{display:flex;gap:10px;align-items:flex-start}
 .card-top .t{min-width:0;flex:1}
@@ -151,7 +165,7 @@ tr:last-child td{border-bottom:0}
     </div>
     <nav id="tabs" hidden>
       <button data-v="painel" aria-current="true">Painel</button>
-      <button data-v="registrar" id="tabReg" hidden>Registrar molhagem</button>
+      <button data-v="registrar" id="tabReg" hidden>Registrar</button>
       <button data-v="historico">Histórico</button>
       <button data-v="cadastros" id="tabCad" hidden>Frotas e pontos</button>
       <button data-v="usuarios" id="tabUsr" hidden>Usuários</button>
@@ -195,6 +209,10 @@ tr:last-child td{border-bottom:0}
   <!-- PAINEL -->
   <section id="v-painel" class="sec" style="gap:24px">
     <div class="kpis" id="kpis"></div>
+    <div class="sec" id="secTraj">
+      <div class="sec-head"><h2>Frotas em trajeto</h2><span class="note">Saíram para molhar e ainda não chegaram ao ponto.</span><button class="btn small ghost" type="button" id="bNovaSaida" hidden style="margin-left:auto">Registrar saída</button></div>
+      <div class="grid" id="trips"></div>
+    </div>
     <div class="sec">
       <div class="sec-head"><h2>Pontos de molhagem</h2><span class="note">Ordenados pelo mais urgente. Previsão = última molhagem + intervalo do ponto.</span></div>
       <div class="grid" id="cards"></div>
@@ -211,7 +229,17 @@ tr:last-child td{border-bottom:0}
 
   <!-- REGISTRAR -->
   <section id="v-registrar" class="sec" hidden>
-    <div class="sec-head"><h2>Registrar molhagem</h2><span class="note">Informe onde e com qual caminhão a estrada foi molhada.</span></div>
+    <div class="sec-head"><h2>Saída de frota</h2><span class="note">A frota saiu para molhar. Quando chegar, confirme no painel e a molhagem é registrada sozinha.</span></div>
+    <form class="form" id="fTraj" novalidate>
+      <label>Frota (caminhão-pipa)<select id="tFrota"></select></label>
+      <label>Saiu de<input id="tOrigem" maxlength="60" list="origens" value="Base" placeholder="Ex.: Base"><datalist id="origens"></datalist></label>
+      <label>Destino (ponto a molhar)<select id="tDestino"></select></label>
+      <label>Horário da saída<input id="tSaida" type="datetime-local"></label>
+      <label>Motorista<input id="tMotorista" type="text" maxlength="80" placeholder="Nome"></label>
+      <label>Observação<input id="tObs" type="text" maxlength="300" placeholder="Opcional"></label>
+      <div class="actions full"><button class="btn" type="submit" id="tSave">Registrar saída</button><span class="msg" id="tMsg" role="status"></span></div>
+    </form>
+    <div class="sec-head" style="margin-top:12px"><h2>Registrar molhagem</h2><span class="note">Informe onde e com qual caminhão a estrada foi molhada.</span></div>
     <form class="form" id="fMol" novalidate>
       <label>Ponto / trecho<select id="mPonto"></select></label>
       <label>Frota (caminhão-pipa)<select id="mFrota"></select></label>
@@ -300,6 +328,9 @@ const ERROS={
   VOLUME_INVALIDO:"Volume inválido.",
   INTERVALO_INVALIDO:"O intervalo precisa ser de pelo menos 15 minutos.",
   NAO_ENCONTRADO:"Registro não encontrado. Atualize a página.",
+  FROTA_EM_TRAJETO:"Essa frota já está em trajeto. Confirme a chegada ou cancele o trajeto atual antes.",
+  TRAJETO_ENCERRADO:"Esse trajeto já foi encerrado. Atualize a página.",
+  CHEGADA_INVALIDA:"O horário da chegada precisa ser depois da saída e não pode estar no futuro.",
   REDE:"Sem conexão com o servidor. Verifique a internet e tente de novo."
 };
 const msgErr=e=>ERROS[e&&e.message]||("Erro: "+(e&&e.message||"desconhecido"));
@@ -308,7 +339,7 @@ const URL_=String(window.SUPABASE_URL||"").trim().replace(/\/+$/,"");
 const KEY=String(window.SUPABASE_KEY||"").trim();
 
 let token=store.get("molh_token"),perfil=null,timer=null,dias=60,usuarios=[];
-const S={pontos:[],frotas:[],mol:[]};
+const S={pontos:[],frotas:[],mol:[],traj:[]};
 
 async function rpc(fn,args){
   const h={"Content-Type":"application/json","apikey":KEY};
@@ -363,12 +394,14 @@ function renderPainel(){
     if(a.status==="none"&&b.status!=="none")return -1; if(b.status==="none"&&a.status!=="none")return 1; return b.ratio-a.ratio;});
   const late=infos.filter(i=>i.status==="late"||i.status==="none").length, warn=infos.filter(i=>i.status==="warn").length;
   const d24=S.mol.filter(m=>now-new Date(m.quando)<864e5);
-  const emdia=infos.filter(i=>i.status==="ok").length;
+  const ativos=S.traj.filter(t=>t.status==="em_trajeto");
   $("#kpis").innerHTML=
     `<div class="kpi ${late?"late":""}"><div class="lbl">Atrasados / sem registro</div><div class="val">${late}<small> de ${S.pontos.length}</small></div></div>`+
     `<div class="kpi ${warn?"warn":""}"><div class="lbl">Molhar em breve</div><div class="val">${warn}</div></div>`+
     `<div class="kpi"><div class="lbl">Molhagens em 24 h</div><div class="val">${d24.length}</div></div>`+
-    `<div class="kpi"><div class="lbl">Pontos em dia</div><div class="val">${emdia}<small> de ${S.pontos.length}</small></div></div>`;
+    "";
+  $("#kpis").innerHTML=$("#kpis").innerHTML.replace(/(<div class="kpi"><div class="lbl">Molhagens)/,`<div class="kpi"><div class="lbl">Frotas em trajeto</div><div class="val">${ativos.length}</div></div>$1`);
+  renderTrips(now,ativos);
   const reg=canReg();
   if(!S.pontos.length){$("#cards").innerHTML=`<div class="empty">Nenhum ponto cadastrado ainda.${canAdmin()?" Cadastre os trechos em <b>Frotas e pontos</b> para começar.":" O administrador ainda vai cadastrar os trechos."}</div>`;}
   else $("#cards").innerHTML=infos.map(i=>{
@@ -381,6 +414,7 @@ function renderPainel(){
       <div class="card-top"><div class="t"><h3>${esc(p.nome)}</h3>
         <div class="sub">${esc([p.trecho,p.km].filter(Boolean).join(" · "))||"&nbsp;"}</div></div>
         <span class="pill ${i.status}">${ST[i.status]}</span></div>
+      ${ativos.filter(t=>t.destino_id===p.id).map(t=>{const f=byId(S.frotas,t.frota_id);return `<div class="otw">A caminho: ${esc(f?f.prefixo:"frota")} · saiu há ${fmtDur((now-new Date(t.saida))/6e4)}</div>`;}).join("")}
       ${i.last?`<div class="elapsed"><span class="big">${fmtDur(i.el)}</span><span class="cap">desde a última molhagem</span></div>
       <div class="bar ${i.status}" role="img" aria-label="${Math.round(w)}% do intervalo"><i style="width:${w}%"></i></div>`
       :`<div class="elapsed"><span class="big">—</span><span class="cap">nenhuma molhagem registrada</span></div><div class="bar"><i style="width:0"></i></div>`}
@@ -398,6 +432,22 @@ function renderPainel(){
   $("#fleetTable").innerHTML=`<thead><tr><th>Frota</th><th class="num">Molhagens</th><th>Última molhagem</th><th>Onde</th></tr></thead><tbody>`+
     (rows.length?rows.map(r=>`<tr><td><b>${esc(r.f.prefixo)}</b> <span style="color:var(--muted)">${esc(r.f.descricao||"")}</span></td><td class="num">${r.n}</td><td class="mono">${r.last?whenLabel(new Date(r.last.quando)):"—"}</td><td>${r.lp?esc(r.lp.nome):"—"}</td></tr>`).join("")
     :`<tr><td colspan="4" style="color:var(--muted)">Nenhuma frota cadastrada.</td></tr>`)+"</tbody>";
+}
+
+let chegando=null,chegVal="";
+function renderTrips(now,ativos){
+  const reg=canReg();$("#bNovaSaida").hidden=!reg;
+  if(!ativos.length){$("#trips").innerHTML=`<div class="empty">Nenhuma frota em trajeto agora.${reg?" Quando uma frota sair para molhar, use <b>Registrar saída</b>.":""}</div>`;return;}
+  $("#trips").innerHTML=ativos.map(t=>{const f=byId(S.frotas,t.frota_id),d=byId(S.pontos,t.destino_id);const s=new Date(t.saida);
+    const open=chegando===t.id;
+    return `<article class="trip" data-tid="${t.id}">
+      <div class="card-top"><div class="t"><div class="tf">${esc(f?f.prefixo:"Frota removida")}</div></div><span class="pill ok">Em trajeto</span></div>
+      <div class="route"><span class="end">${esc(t.origem)}</span><span class="line" aria-hidden="true"></span><span class="end to">${esc(d?d.nome:"Ponto removido")}</span></div>
+      <div class="meta">Saiu ${whenLabel(s)} · <b>há ${fmtDur((now-s)/6e4)}</b>${t.motorista?` · ${esc(t.motorista)}`:""}${t.obs?`<br>${esc(t.obs)}`:""}</div>
+      ${reg?(open?`<div class="chg"><label>Horário da chegada<input type="datetime-local" id="chg-${t.id}" value="${chegVal||toLocalInput(new Date())}"></label>
+          <button class="btn small" data-tok="${t.id}">Confirmar e registrar molhagem</button><button class="btn small ghost" data-tback="1">Voltar</button></div>`
+        :`<div class="actions"><button class="btn small" data-tarr="${t.id}">Chegou e molhou</button><button class="btn danger small" data-tcan="${t.id}">Cancelar trajeto</button></div>`):""}
+    </article>`;}).join("");
 }
 
 function renderTimeline(now){
@@ -424,6 +474,12 @@ function fillSelect(sel,items,label,withAll){
 function renderSelects(){
   const pl=p=>p.nome+(p.km?" — "+p.km:""), fl=f=>f.prefixo+(f.descricao?" — "+f.descricao:"");
   fillSelect($("#mPonto"),S.pontos,pl); fillSelect($("#mFrota"),S.frotas,fl);
+  const busy=new Set(S.traj.filter(t=>t.status==="em_trajeto").map(t=>t.frota_id));
+  fillSelect($("#tFrota"),S.frotas,f=>fl(f)+(busy.has(f.id)?" (em trajeto)":"")); fillSelect($("#tDestino"),S.pontos,pl);
+  [...$("#tFrota").options].forEach(o=>{o.disabled=busy.has(+o.value);});
+  if($("#tFrota").selectedOptions[0]&&$("#tFrota").selectedOptions[0].disabled){const free=[...$("#tFrota").options].find(o=>!o.disabled);if(free)$("#tFrota").value=free.value;}
+  const origens=[...new Set(["Base",...S.traj.map(t=>t.origem).filter(Boolean)])];
+  $("#origens").innerHTML=origens.map(o=>`<option value="${esc(o)}"></option>`).join("");
   fillSelect($("#hPonto"),S.pontos,pl,true); fillSelect($("#hFrota"),S.frotas,fl,true);
 }
 
@@ -432,10 +488,10 @@ function renderHistorico(){
   const list=S.mol.filter(m=>(!pp||String(m.ponto_id)===pp)&&(!ff||String(m.frota_id)===ff)&&(now-new Date(m.quando)<d*864e5)).slice(0,1000);
   const gap=m=>{const idx=S.mol.indexOf(m);const prev=S.mol.slice(idx+1).find(x=>x.ponto_id===m.ponto_id);return prev?(new Date(m.quando)-new Date(prev.quando))/6e4:null;};
   $("#hCount").textContent=`${list.length} registro${list.length===1?"":"s"}`;
-  $("#hTable").innerHTML=`<thead><tr><th>Data e hora</th><th>Ponto</th><th>Frota</th><th class="num">Desde a anterior</th><th>Motorista</th><th>Observação</th><th>Lançado por</th><th></th></tr></thead><tbody>`+
+  $("#hTable").innerHTML=`<thead><tr><th>Data e hora</th><th>Ponto</th><th>Frota</th><th class="num">Tempo de trajeto</th><th class="num">Desde a anterior</th><th>Motorista</th><th>Observação</th><th>Lançado por</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(m=>{const p=byId(S.pontos,m.ponto_id),f=byId(S.frotas,m.frota_id);const g=gap(m);
-      return `<tr><td class="mono">${fmtDH(new Date(m.quando))}</td><td>${esc(p?p.nome:"(removido)")}</td><td>${esc(f?f.prefixo:"(removida)")}</td><td class="num">${g==null?"—":fmtDur(g)}</td><td>${esc(m.motorista||"—")}</td><td style="white-space:normal;min-width:160px">${esc(m.obs||"")}</td><td>${esc(m.lancado_por||"—")}</td><td>${canDelMol(m)?`<button class="btn danger small" data-del="mol:${m.id}">Excluir</button>`:""}</td></tr>`;}).join("")
-    :`<tr><td colspan="8" style="color:var(--muted)">Nenhuma molhagem no filtro escolhido.</td></tr>`)+"</tbody>";
+      return `<tr><td class="mono">${fmtDH(new Date(m.quando))}</td><td>${esc(p?p.nome:"(removido)")}</td><td>${esc(f?f.prefixo:"(removida)")}</td><td class="num">${m.saida?`${fmtDur((new Date(m.quando)-new Date(m.saida))/6e4)} <span style="color:var(--muted)">de ${esc(m.origem||"")}</span>`:"—"}</td><td class="num">${g==null?"—":fmtDur(g)}</td><td>${esc(m.motorista||"—")}</td><td style="white-space:normal;min-width:160px">${esc(m.obs||"")}</td><td>${esc(m.lancado_por||"—")}</td><td>${canDelMol(m)?`<button class="btn danger small" data-del="mol:${m.id}">Excluir</button>`:""}</td></tr>`;}).join("")
+    :`<tr><td colspan="9" style="color:var(--muted)">Nenhuma molhagem no filtro escolhido.</td></tr>`)+"</tbody>";
 }
 
 function renderCadastros(){
@@ -467,7 +523,7 @@ function tick(){const n=new Date();$("#clock").textContent=fmtHM(n)+" · "+n.toL
 /* ---------- dados ---------- */
 async function carregar(){
   const r=await rpc("molh_dados",{p_token:token,p_dias:dias});
-  perfil=r.perfil;S.pontos=r.pontos||[];S.frotas=r.frotas||[];S.mol=r.molhagens||[];
+  perfil=r.perfil;S.pontos=r.pontos||[];S.frotas=r.frotas||[];S.mol=r.molhagens||[];S.traj=r.trajetos||[];
   renderAll(); banner("");
 }
 async function carregarUsuarios(){if(!canAdmin())return;try{usuarios=await rpc("molh_usuarios_lista",{p_token:token})||[];renderUsuarios();}catch(e){setMsg("#uMsg",msgErr(e),true);}}
@@ -491,7 +547,7 @@ async function entrar(){
   if(perfil.troca_senha){abrirSenha(true);return;}
   $("#whoName").textContent=perfil.nome;$("#whoRole").textContent=PAPEL[perfil.papel]||perfil.papel;
   $("#tabReg").hidden=!canReg();$("#tabCad").hidden=!canAdmin();$("#tabUsr").hidden=!canAdmin();
-  $("#mQuando").value=toLocalInput(new Date());
+  $("#mQuando").value=toLocalInput(new Date());$("#tSaida").value=toLocalInput(new Date());
   tela("vApp");aba(location.hash.slice(1));
   if(perfil.papel==="consulta")banner("Seu acesso é de <b>consulta</b>: você acompanha o painel e o histórico, sem registrar molhagens.");
   clearInterval(timer);
@@ -535,6 +591,18 @@ $("#fMol").addEventListener("submit",async e=>{e.preventDefault();
   catch(err){setMsg("#mMsg",msgErr(err),true);}
   $("#mSave").disabled=false;
 });
+$("#fTraj").addEventListener("submit",async e=>{e.preventDefault();
+  const frota=$("#tFrota").value,dest=$("#tDestino").value,q=$("#tSaida").value;
+  if(!frota||!dest){setMsg("#tMsg","Escolha a frota e o destino. Se a lista estiver vazia, peça ao administrador para cadastrá-los.",true);return;}
+  if(!q){setMsg("#tMsg","Informe o horário da saída.",true);return;}
+  const saida=new Date(q);$("#tSave").disabled=true;
+  try{await rpc("molh_iniciar_trajeto",{p_token:token,p_frota:+frota,p_destino:+dest,p_origem:$("#tOrigem").value,p_saida:saida.toISOString(),p_motorista:$("#tMotorista").value,p_obs:$("#tObs").value});
+    const f=byId(S.frotas,frota),d=byId(S.pontos,dest);
+    setMsg("#tMsg",`Saída registrada: ${f?f.prefixo:""} saiu de ${$("#tOrigem").value||"Base"} às ${fmtHM(saida)} para ${d?d.nome:""}.`);
+    $("#tObs").value="";$("#tMotorista").value="";$("#tSaida").value=toLocalInput(new Date());await carregar();}
+  catch(err){setMsg("#tMsg",msgErr(err),true);}
+  $("#tSave").disabled=false;
+});
 $("#fPonto").addEventListener("submit",async e=>{e.preventDefault();
   try{await rpc("molh_salvar_ponto",{p_token:token,p_id:null,p_nome:$("#pNome").value,p_trecho:$("#pTrecho").value,p_km:$("#pKm").value,p_intervalo:Math.round(+$("#pInt").value)});
     setMsg("#pMsg","Ponto adicionado.");$("#pNome").value="";$("#pKm").value="";await carregar();}
@@ -577,6 +645,18 @@ document.addEventListener("click",async e=>{
       setMsg("#uMsg",senha?`Senha de ${u.usuario} redefinida. A pessoa troca no próximo acesso.`:`Usuário ${u.usuario} atualizado.`);await carregarUsuarios();}
     catch(err){setMsg("#uMsg",msgErr(err),true);us.disabled=false;}
     return;}
+  if(e.target.closest("#bNovaSaida")){$("#tSaida").value=toLocalInput(new Date());history.replaceState(null,"","#registrar");aba("registrar");$("#tFrota").focus();return;}
+  const ta=e.target.closest("[data-tarr]");if(ta){chegando=+ta.dataset.tarr;chegVal="";renderPainel();return;}
+  if(e.target.closest("[data-tback]")){chegando=null;renderPainel();return;}
+  const tk=e.target.closest("[data-tok]");
+  if(tk){const id=+tk.dataset.tok,v=$("#chg-"+id).value;if(!v)return;tk.disabled=true;
+    try{await rpc("molh_concluir_trajeto",{p_token:token,p_id:id,p_chegada:new Date(v).toISOString(),p_obs:""});chegando=null;await carregar();banner("");}
+    catch(err){tk.disabled=false;banner(esc(msgErr(err)));}
+    return;}
+  const tc=e.target.closest("[data-tcan]");
+  if(tc){if(!tc.classList.contains("armed")){tc.classList.add("armed");tc.textContent="Confirmar cancelamento?";setTimeout(()=>{if(tc.isConnected){tc.classList.remove("armed");tc.textContent="Cancelar trajeto";}},3500);return;}
+    tc.disabled=true;try{await rpc("molh_cancelar_trajeto",{p_token:token,p_id:+tc.dataset.tcan});await carregar();}catch(err){tc.disabled=false;banner(esc(msgErr(err)));}
+    return;}
   const d=e.target.closest("[data-del]");
   if(d){
     if(!d.classList.contains("armed")){d.classList.add("armed");d._txt=d.textContent;d.textContent="Confirmar?";setTimeout(()=>{if(d.isConnected){d.classList.remove("armed");d.textContent=d._txt;}},3500);return;}
@@ -585,6 +665,7 @@ document.addEventListener("click",async e=>{
     try{await rpc(fn,{p_token:token,p_id:+id});await carregar();}catch(err){d.disabled=false;d.textContent="Falhou";banner(esc(msgErr(err)));}
   }
 });
+document.addEventListener("input",e=>{if(e.target.id&&e.target.id.startsWith("chg-"))chegVal=e.target.value;});
 const intTimer={};
 document.addEventListener("change",e=>{
   const t=e.target;
