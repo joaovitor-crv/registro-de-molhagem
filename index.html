@@ -267,7 +267,7 @@ tr:last-child td{border-bottom:0}
     <div class="sec-head"><h2>Usuários</h2><span class="note">Crie o acesso com uma senha provisória. A pessoa troca a senha no primeiro login.</span></div>
     <form class="form" id="fUser" novalidate>
       <label>Nome<input id="uNome" maxlength="80" placeholder="Nome e sobrenome"></label>
-      <label>Usuário (login)<input id="uLogin" maxlength="40" autocapitalize="none" spellcheck="false" placeholder="ex.: joao.silva"></label>
+      <label>Usuário (login)<input id="uLogin" maxlength="40" autocapitalize="none" spellcheck="false" placeholder="ex.: joao.silva"><span id="uPrev" style="font-weight:400;font-size:12px;color:var(--muted)">Preenchido a partir do nome. Pode editar.</span></label>
       <label>Perfil<select id="uPapel"><option value="operador">Operador (registra molhagens)</option><option value="consulta">Consulta (apenas acompanha)</option><option value="admin">Administrador</option></select></label>
       <label>Senha provisória<input id="uSenha" type="text" autocomplete="off" placeholder="mínimo 4, sem o nome da pessoa"></label>
       <div class="actions full"><button class="btn" type="submit" id="uBtn">Criar usuário</button><span class="msg" id="uMsg" role="status"></span></div>
@@ -548,10 +548,21 @@ $("#fFrota").addEventListener("submit",async e=>{e.preventDefault();const c=$("#
     setMsg("#fMsg","Frota adicionada.");$("#fPref").value="";$("#fDesc").value="";$("#fCap").value="";await carregar();}
   catch(err){setMsg("#fMsg",msgErr(err),true);}
 });
-$("#fUser").addEventListener("submit",async e=>{e.preventDefault();$("#uBtn").disabled=true;
+const normLogin=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim()
+  .replace(/\s+/g,".").replace(/[^a-z0-9._-]/g,"").replace(/\.{2,}/g,".").replace(/^[.]+|[.]+$/g,"").slice(0,40);
+const loginDoNome=n=>{const p=normLogin(n).split(".").filter(Boolean);return p.length>1?p[0]+"."+p[p.length-1]:(p[0]||"");};
+let loginEditado=false;
+$("#uNome").addEventListener("input",()=>{if(!loginEditado)$("#uLogin").value=loginDoNome($("#uNome").value);});
+$("#uLogin").addEventListener("input",()=>{const el=$("#uLogin"),v=el.value,n=v.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s/g,".").replace(/[^a-z0-9._-]/g,"");
+  if(n!==v){el.value=n;}loginEditado=n!=="";});
+$("#lUser").addEventListener("input",()=>{const el=$("#lUser"),n=el.value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s/g,"");if(n!==el.value)el.value=n;});
+$("#fUser").addEventListener("submit",async e=>{e.preventDefault();
+  $("#uLogin").value=normLogin($("#uLogin").value)||loginDoNome($("#uNome").value);
+  if($("#uLogin").value.length<3){setMsg("#uMsg","O usuário precisa ter pelo menos 3 letras ou números.",true);return;}
+  $("#uBtn").disabled=true;
   try{await rpc("molh_salvar_usuario",{p_token:token,p_id:null,p_usuario:$("#uLogin").value,p_nome:$("#uNome").value,p_papel:$("#uPapel").value,p_senha:$("#uSenha").value,p_ativo:true});
     setMsg("#uMsg",`Usuário ${$("#uLogin").value.trim().toLowerCase()} criado. Passe o usuário e a senha provisória para a pessoa.`);
-    ["#uNome","#uLogin","#uSenha"].forEach(i=>$(i).value="");await carregarUsuarios();}
+    ["#uNome","#uLogin","#uSenha"].forEach(i=>$(i).value="");loginEditado=false;await carregarUsuarios();}
   catch(err){setMsg("#uMsg",msgErr(err),true);}
   $("#uBtn").disabled=false;
 });
