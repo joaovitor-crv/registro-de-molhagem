@@ -88,6 +88,43 @@ returns jsonb language sql immutable as $$
   select jsonb_build_object('id',u.id,'usuario',u.usuario,'nome',u.nome,'papel',u.papel,'troca_senha',u.troca_senha)
 $$;
 
+-- ---------- Regras de senha (uso interno) ----------
+-- Mínimo 4 caracteres; letras e números bastam. Bloqueia senhas óbvias
+-- (1234, 4321, 1111, abcd, senha...) e senhas com o nome ou o login da pessoa.
+create or replace function molh__checar_senha(p_senha text, p_usuario text, p_nome text)
+returns void language plpgsql immutable as $$
+declare
+  s text := lower(translate(coalesce(p_senha,''),'ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇçÑñ','aaaaaaaaaaeeeeeeeeiiiiiiiioooooooooouuuuuuuuccnn'));
+  nome text := lower(translate(coalesce(p_nome,''),'ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇçÑñ','aaaaaaaaaaeeeeeeeeiiiiiiiioooooooooouuuuuuuuccnn'));
+  login text := lower(coalesce(p_usuario,''));
+  parte text; i int; passo int; seq boolean;
+begin
+  if length(s) < 4 then raise exception 'SENHA_CURTA'; end if;
+  -- todos os caracteres iguais (1111, aaaa)
+  if s ~ '^(.)\1*$' then raise exception 'SENHA_FRACA'; end if;
+  -- sequência crescente ou decrescente (1234, 4321, abcd, 987654)
+  if s ~ '^[0-9]+$' or s ~ '^[a-z]+$' then
+    passo := ascii(substr(s,2,1)) - ascii(substr(s,1,1));
+    if passo in (1,-1) then
+      seq := true;
+      for i in 2..length(s)-1 loop
+        if ascii(substr(s,i+1,1)) - ascii(substr(s,i,1)) <> passo then seq := false; exit; end if;
+      end loop;
+      if seq then raise exception 'SENHA_FRACA'; end if;
+    end if;
+  end if;
+  -- senhas conhecidas demais
+  if s in ('senha','senha1','senha12','senha123','password','qwerty','qwer','asdf','abc123','admin','admin1','admin123',
+           'molhagem','pipa','teste','teste1','teste123','mudar','mudar123','1q2w3e','1q2w3e4r','102030','112233','121212','123123')
+    then raise exception 'SENHA_FRACA'; end if;
+  -- não pode usar o login nem o nome da pessoa
+  if length(login) >= 3 and position(regexp_replace(login,'[^a-z0-9]','','g') in regexp_replace(s,'[^a-z0-9]','','g')) > 0
+    then raise exception 'SENHA_COM_NOME'; end if;
+  foreach parte in array regexp_split_to_array(nome, '[^a-z]+') loop
+    if length(parte) >= 3 and position(parte in s) > 0 then raise exception 'SENHA_COM_NOME'; end if;
+  end loop;
+end $$;
+
 -- ---------- Login / senha ----------
 create or replace function molh_login(p_usuario text, p_senha text)
 returns jsonb language plpgsql security definer
@@ -116,8 +153,8 @@ declare u molh_usuarios;
 begin
   u := molh__sessao(p_token);
   if u.senha_hash <> crypt(coalesce(p_atual,''), u.senha_hash) then raise exception 'SENHA_ATUAL_ERRADA'; end if;
-  if length(coalesce(p_nova,'')) < 6 then raise exception 'SENHA_CURTA'; end if;
   if p_nova = p_atual then raise exception 'SENHA_IGUAL'; end if;
+  perform molh__checar_senha(p_nova, u.usuario, u.nome);
   update molh_usuarios set senha_hash = crypt(p_nova, gen_salt('bf')), troca_senha = false where id = u.id
   returning * into u;
   return molh__perfil(u);
@@ -262,7 +299,7 @@ begin
   if login !~ '^[a-z0-9._-]{3,40}$' then raise exception 'USUARIO_INVALIDO'; end if;
   if coalesce(trim(p_nome),'') = '' then raise exception 'NOME_VAZIO'; end if;
   if p_papel not in ('admin','operador','consulta') then raise exception 'PAPEL_INVALIDO'; end if;
-  if p_senha is not null and p_senha <> '' and length(p_senha) < 6 then raise exception 'SENHA_CURTA'; end if;
+  if coalesce(p_senha,'') <> '' then perform molh__checar_senha(p_senha, login, p_nome); end if;
   if exists (select 1 from molh_usuarios where usuario = login and id is distinct from p_id) then raise exception 'USUARIO_EXISTE'; end if;
   if p_id is null then
     if coalesce(p_senha,'') = '' then raise exception 'SENHA_CURTA'; end if;
@@ -285,6 +322,7 @@ end $$;
 -- ---------- Permissões das funções ----------
 revoke execute on function molh__sessao(text) from public, anon, authenticated;
 revoke execute on function molh__perfil(molh_usuarios) from public, anon, authenticated;
+revoke execute on function molh__checar_senha(text,text,text) from public, anon, authenticated;
 grant execute on function
   molh_login(text,text), molh_sair(text), molh_trocar_senha(text,text,text), molh_dados(text,integer),
   molh_registrar(text,bigint,bigint,timestamptz,integer,text,text,text), molh_excluir_molhagem(text,bigint),

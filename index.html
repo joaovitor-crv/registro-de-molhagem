@@ -185,7 +185,7 @@ tr:last-child td{border-bottom:0}
     <p id="sNote" style="margin:0;color:var(--muted)"></p>
     <form class="form" id="fSenha" novalidate>
       <label>Senha atual<input id="sAtual" type="password" autocomplete="current-password"></label>
-      <label>Nova senha (mínimo 6 caracteres)<input id="sNova" type="password" autocomplete="new-password"></label>
+      <label>Nova senha (mínimo 4 caracteres, letras e números)<input id="sNova" type="password" autocomplete="new-password"></label>
       <label>Repita a nova senha<input id="sConf" type="password" autocomplete="new-password"></label>
       <div class="actions"><button class="btn" type="submit" id="sBtn">Salvar senha</button><button class="btn ghost" type="button" id="sCancel">Cancelar</button><span class="msg" id="sMsg" role="status"></span></div>
     </form>
@@ -269,7 +269,7 @@ tr:last-child td{border-bottom:0}
       <label>Nome<input id="uNome" maxlength="80" placeholder="Nome e sobrenome"></label>
       <label>Usuário (login)<input id="uLogin" maxlength="40" autocapitalize="none" spellcheck="false" placeholder="ex.: joao.silva"></label>
       <label>Perfil<select id="uPapel"><option value="operador">Operador (registra molhagens)</option><option value="consulta">Consulta (apenas acompanha)</option><option value="admin">Administrador</option></select></label>
-      <label>Senha provisória<input id="uSenha" type="text" autocomplete="off" placeholder="mínimo 6 caracteres"></label>
+      <label>Senha provisória<input id="uSenha" type="text" autocomplete="off" placeholder="mínimo 4, sem o nome da pessoa"></label>
       <div class="actions full"><button class="btn" type="submit" id="uBtn">Criar usuário</button><span class="msg" id="uMsg" role="status"></span></div>
     </form>
     <div class="tablebox"><table id="uTable"></table></div>
@@ -285,7 +285,9 @@ const ERROS={
   LOGIN_INVALIDO:"Usuário ou senha incorretos.",
   SESSAO_EXPIRADA:"Sua sessão expirou. Entre novamente.",
   SEM_PERMISSAO:"Seu perfil não permite essa ação.",
-  SENHA_CURTA:"A senha precisa ter pelo menos 6 caracteres.",
+  SENHA_CURTA:"A senha precisa ter pelo menos 4 caracteres.",
+  SENHA_FRACA:"Senha fácil demais. Evite sequências como 1234 ou abcd, caracteres repetidos como 1111 e senhas comuns como \"senha\".",
+  SENHA_COM_NOME:"A senha não pode conter o nome nem o usuário da pessoa.",
   SENHA_IGUAL:"A nova senha precisa ser diferente da atual.",
   SENHA_ATUAL_ERRADA:"A senha atual está incorreta.",
   USUARIO_INVALIDO:"Usuário deve ter de 3 a 40 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado, sem espaços nem acentos.",
@@ -516,7 +518,7 @@ $("#sCancel").addEventListener("click",()=>tela("vApp"));
 $("#bSair").addEventListener("click",async()=>{try{await rpc("molh_sair",{p_token:token});}catch(e){}sairLocal("");});
 $("#fSenha").addEventListener("submit",async e=>{e.preventDefault();
   const a=$("#sAtual").value,n=$("#sNova").value,c=$("#sConf").value;
-  if(n.length<6){setMsg("#sMsg",ERROS.SENHA_CURTA,true);return;}
+  if(n.length<4){setMsg("#sMsg",ERROS.SENHA_CURTA,true);return;}
   if(n!==c){setMsg("#sMsg","As duas senhas novas não conferem.",true);return;}
   $("#sBtn").disabled=true;
   try{perfil=await rpc("molh_trocar_senha",{p_token:token,p_atual:a,p_nova:n});await entrar();}
