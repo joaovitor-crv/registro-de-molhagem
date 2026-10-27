@@ -206,7 +206,7 @@ create or replace function molh_registrar(p_token text, p_ponto bigint, p_frota 
   p_volume integer, p_motorista text, p_condicao text, p_obs text)
 returns bigint language plpgsql security definer
 set search_path = public as $$
-declare u molh_usuarios; nid bigint;
+declare u molh_usuarios; nid bigint; tid bigint;
 begin
   u := molh__sessao(p_token);
   if u.papel not in ('admin','operador') then raise exception 'SEM_PERMISSAO'; end if;
@@ -214,9 +214,15 @@ begin
   if not exists (select 1 from molh_frotas where id = p_frota and ativo) then raise exception 'FROTA_INVALIDA'; end if;
   if p_quando is null or p_quando > now() + interval '5 minutes' then raise exception 'DATA_INVALIDA'; end if;
   if p_volume is not null and (p_volume < 0 or p_volume > 100000) then raise exception 'VOLUME_INVALIDO'; end if;
-  insert into molh_molhagens(ponto_id, frota_id, quando, volume_l, motorista, condicao, obs, criado_por)
+  -- Se a frota estava em trajeto, a molhagem lançada direto encerra o trajeto
+  select id into tid from molh_trajetos
+   where frota_id = p_frota and status = 'em_trajeto' and saida <= p_quando for update;
+  if tid is not null then
+    update molh_trajetos set status = 'concluido', chegada = p_quando, encerrado_por = u.id where id = tid;
+  end if;
+  insert into molh_molhagens(ponto_id, frota_id, quando, volume_l, motorista, condicao, obs, criado_por, trajeto_id)
   values (p_ponto, p_frota, p_quando, p_volume, left(coalesce(trim(p_motorista),''),80),
-          left(coalesce(p_condicao,''),40), left(coalesce(trim(p_obs),''),300), u.id)
+          left(coalesce(p_condicao,''),40), left(coalesce(trim(p_obs),''),300), u.id, tid)
   returning id into nid;
   return nid;
 end $$;
