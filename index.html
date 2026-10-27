@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Controle de Molhagem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script>
+  /* ============ CONFIGURAÇÃO — mesmo projeto Supabase do sistema fadiga ============ */
+  window.SUPABASE_URL = "https://xafbnwjxypdzizntkboh.supabase.co";
+  window.SUPABASE_KEY = "sb_publishable_PQhSXGWpCE77hQ32vwUIDg_ThiBaZPw";
+</script>
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<style>
+/* Layout: faixa azul-marinho de cabeçalho com abas; painel de pontos em cartões com barra de ciclo; histórico em tabela. */
+:root{
+  --bg:#eef4fa; --surface:#ffffff; --surface-2:#e3edf7; --line:#c9d8e8;
+  --fg:#0d2238; --muted:#4d6680;
+  --navy:#0b2a4a; --navy-fg:#e6f0fa;
+  --water:#1f6fd1; --water-soft:#d4e5f9; --sky:#5fa8f0;
+  --ok:#1f6fd1; --warn:#c98a12; --warn-soft:#fbefd6; --late:#c23a3a; --late-soft:#f8dddd;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#07131f; --surface:#0e2135; --surface-2:#132b44; --line:#1f3d5c;
+  --fg:#dceaf8; --muted:#8eaac6;
+  --navy:#061a2e; --navy-fg:#dceaf8;
+  --water:#5aa2f2; --water-soft:#163b62; --sky:#7fbaf5;
+  --ok:#5aa2f2; --warn:#e5a93a; --warn-soft:#3b2e12; --late:#ef6b6b; --late-soft:#3d1a1d;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#07131f; --surface:#0e2135; --surface-2:#132b44; --line:#1f3d5c;
+  --fg:#dceaf8; --muted:#8eaac6;
+  --navy:#061a2e; --navy-fg:#dceaf8;
+  --water:#5aa2f2; --water-soft:#163b62; --sky:#7fbaf5;
+  --ok:#5aa2f2; --warn:#e5a93a; --warn-soft:#3b2e12; --late:#ef6b6b; --late-soft:#3d1a1d;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--navy)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{background:var(--navy);color:var(--navy-fg);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+header .wrap{padding-block:14px 0;display:flex;flex-direction:column;gap:10px}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand h1{font-family:var(--display);font-weight:700;font-size:28px;letter-spacing:.02em;margin:0;text-transform:uppercase;text-wrap:balance}
+.brand .clock{font-family:var(--mono);font-size:13px;opacity:.75;margin-left:auto}
+nav{display:flex;gap:4px;overflow-x:auto}
+nav button{background:none;border:0;color:var(--navy-fg);opacity:.7;font:600 14px var(--body);padding:10px 14px;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap}
+nav button[aria-current="true"]{opacity:1;background:var(--bg);color:var(--fg)}
+nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+main .wrap{padding-block:22px 48px;display:flex;flex-direction:column;gap:24px}
+.banner{background:var(--water-soft);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;font-size:14px}
+h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.03em;text-transform:uppercase;margin:0;text-wrap:balance}
+.sec{display:flex;flex-direction:column;gap:12px}
+.sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sec-head .note{color:var(--muted);font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.kpi .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kpi .val{font-family:var(--display);font-size:34px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .val small{font-size:16px;color:var(--muted);font-weight:500}
+.kpi.late .val{color:var(--late)} .kpi.warn .val{color:var(--warn)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card-top{display:flex;gap:10px;align-items:flex-start}
+.card-top .t{min-width:0;flex:1}
+.card h3{margin:0;font-size:16px;font-weight:600;overflow-wrap:anywhere}
+.card .sub{font-size:13px;color:var(--muted);font-family:var(--mono)}
+.pill{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.pill.ok{background:var(--water-soft);color:var(--water)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.late{background:var(--late-soft);color:var(--late)}
+.pill.none{background:var(--surface-2);color:var(--muted)}
+.elapsed{display:flex;align-items:baseline;gap:8px}
+.elapsed .big{font-family:var(--display);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.elapsed .cap{font-size:13px;color:var(--muted)}
+.bar{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden;position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--water);border-radius:99px}
+.bar.warn i{background:var(--warn)} .bar.late i{background:var(--late)}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:13px;margin:0}
+.facts dt{color:var(--muted)} .facts dd{margin:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.btn{font:600 14px var(--body);border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--water);background:var(--water);color:#fff}
+.btn.ghost{background:transparent;color:var(--water)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn.danger{border-color:var(--late);color:var(--late);background:transparent}
+.btn.danger.armed{background:var(--late);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.tl{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;overflow-x:auto}
+.tl svg{display:block;min-width:640px;width:100%}
+.tl text{fill:var(--muted);font-family:var(--mono);font-size:11px}
+.tl .name{fill:var(--fg);font-family:var(--body);font-size:12px}
+.form{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.form .full{grid-column:1/-1}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500;color:var(--muted)}
+input,select,textarea{font:400 15px var(--body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+textarea{min-height:64px;resize:vertical}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.msg{font-size:14px;color:var(--water);font-weight:500}
+.msg.err{color:var(--late)}
+.tablebox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--surface-2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.mono{font-family:var(--mono);font-size:13px}
+tr:last-child td{border-bottom:0}
+.filters{display:flex;gap:10px;flex-wrap:wrap}
+.filters label{flex:1 1 180px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:22px;color:var(--muted);text-align:center}
+.tag{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px}
+.who{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;margin-left:auto}
+.who .role{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,.14)}
+.who .role.acc{background:var(--sky);color:var(--navy)}
+.gate{max-width:560px;margin:8px auto 0;width:100%}
+.users{display:flex;flex-direction:column;gap:8px}
+.urow{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.urow.req{border-color:var(--warn);background:var(--warn-soft)}
+.urow .uname{font-weight:600;flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+.urow .meta{font-size:12px;color:var(--muted);display:block;font-weight:400}
+.urow select{width:auto;flex:0 1 200px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.two,.form{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .4s ease}}
+</style><style>
+.login{max-width:420px;margin:40px auto 0;width:100%}
+.login .form{grid-template-columns:1fr}
+.hbtn{background:none;border:1px solid rgba(255,255,255,.3);color:var(--navy-fg);font:500 13px var(--body);border-radius:6px;padding:4px 10px;cursor:pointer}
+.hbtn:hover{background:rgba(255,255,255,.1)}
+.ucell{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.off td{opacity:.55}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <h1>Controle de Molhagem</h1>
+      <span class="clock" id="clock"></span>
+      <span class="who" id="who" hidden><span id="whoName"></span><span class="role acc" id="whoRole"></span>
+        <button class="hbtn" id="bSenha" type="button">Trocar senha</button><button class="hbtn" id="bSair" type="button">Sair</button></span>
+    </div>
+    <nav id="tabs" hidden>
+      <button data-v="painel" aria-current="true">Painel</button>
+      <button data-v="registrar" id="tabReg" hidden>Registrar molhagem</button>
+      <button data-v="historico">Histórico</button>
+      <button data-v="cadastros" id="tabCad" hidden>Frotas e pontos</button>
+      <button data-v="usuarios" id="tabUsr" hidden>Usuários</button>
+    </nav>
+  </div>
+</header>
+
+<main><div class="wrap">
+  <div class="banner" id="banner" hidden></div>
+
+  <!-- CONFIG -->
+  <section id="vConfig" class="sec login" hidden>
+    <h2>Banco não configurado</h2>
+    <p style="margin:0;color:var(--muted)">Preencha SUPABASE_URL e SUPABASE_KEY no início do arquivo index.html.</p>
+  </section>
+
+  <!-- LOGIN -->
+  <section id="vLogin" class="sec login" hidden>
+    <h2>Entrar</h2>
+    <form class="form" id="fLogin" novalidate>
+      <label>Usuário<input id="lUser" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+      <label>Senha<input id="lPass" type="password" autocomplete="current-password"></label>
+      <div class="actions"><button class="btn" type="submit" id="lBtn">Entrar</button><span class="msg" id="lMsg" role="status"></span></div>
+    </form>
+    <p style="margin:0;color:var(--muted);font-size:13px">Não tem usuário? Peça ao administrador do Controle de Molhagem.</p>
+  </section>
+
+  <!-- TROCA DE SENHA -->
+  <section id="vSenha" class="sec login" hidden>
+    <h2>Trocar senha</h2>
+    <p id="sNote" style="margin:0;color:var(--muted)"></p>
+    <form class="form" id="fSenha" novalidate>
+      <label>Senha atual<input id="sAtual" type="password" autocomplete="current-password"></label>
+      <label>Nova senha (mínimo 6 caracteres)<input id="sNova" type="password" autocomplete="new-password"></label>
+      <label>Repita a nova senha<input id="sConf" type="password" autocomplete="new-password"></label>
+      <div class="actions"><button class="btn" type="submit" id="sBtn">Salvar senha</button><button class="btn ghost" type="button" id="sCancel">Cancelar</button><span class="msg" id="sMsg" role="status"></span></div>
+    </form>
+  </section>
+
+  <div id="vApp" hidden style="display:contents">
+  <!-- PAINEL -->
+  <section id="v-painel" class="sec" style="gap:24px">
+    <div class="kpis" id="kpis"></div>
+    <div class="sec">
+      <div class="sec-head"><h2>Pontos de molhagem</h2><span class="note">Ordenados pelo mais urgente. Previsão = última molhagem + intervalo do ponto.</span></div>
+      <div class="grid" id="cards"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><h2>Últimas 24 horas</h2><span class="note">Cada traço é uma molhagem registrada no ponto.</span></div>
+      <div class="tl" id="timeline"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><h2>Frotas</h2><span class="note">Atividade das últimas 24 h</span></div>
+      <div class="tablebox"><table id="fleetTable"></table></div>
+    </div>
+  </section>
+
+  <!-- REGISTRAR -->
+  <section id="v-registrar" class="sec" hidden>
+    <div class="sec-head"><h2>Registrar molhagem</h2><span class="note">Informe onde e com qual caminhão a estrada foi molhada.</span></div>
+    <form class="form" id="fMol" novalidate>
+      <label>Ponto / trecho<select id="mPonto"></select></label>
+      <label>Frota (caminhão-pipa)<select id="mFrota"></select></label>
+      <label>Data e hora<input id="mQuando" type="datetime-local"></label>
+      <label>Volume aplicado (L)<input id="mVolume" type="number" min="0" step="100" placeholder="ex.: 8000"></label>
+      <label>Motorista<input id="mMotorista" type="text" maxlength="80" placeholder="Nome"></label>
+      <label>Condição da via<select id="mCond"><option>Muita poeira</option><option>Poeira moderada</option><option>Pouca poeira</option><option>Já úmida</option></select></label>
+      <label class="full">Observação<textarea id="mObs" maxlength="300" placeholder="Ex.: molhado só o lado da descida"></textarea></label>
+      <div class="actions full"><button class="btn" type="submit" id="mSave">Salvar molhagem</button><span class="msg" id="mMsg" role="status"></span></div>
+    </form>
+  </section>
+
+  <!-- HISTÓRICO -->
+  <section id="v-historico" class="sec" hidden>
+    <div class="sec-head"><h2>Histórico de molhagens</h2><span class="note" id="hCount"></span></div>
+    <div class="filters">
+      <label>Ponto<select id="hPonto"></select></label>
+      <label>Frota<select id="hFrota"></select></label>
+      <label>Período<select id="hPeriodo"><option value="1">Últimas 24 h</option><option value="7" selected>Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="60">Últimos 60 dias</option><option value="180">Últimos 6 meses</option><option value="365">Último ano</option></select></label>
+    </div>
+    <div class="tablebox"><table id="hTable"></table></div>
+  </section>
+
+  <!-- CADASTROS -->
+  <section id="v-cadastros" class="sec" hidden>
+    <div class="two">
+      <div class="sec">
+        <h2>Pontos de molhagem</h2>
+        <form class="form" id="fPonto" novalidate>
+          <label class="full">Nome do ponto<input id="pNome" maxlength="80" placeholder="Ex.: Curva da balança"></label>
+          <label>Trecho / estrada<input id="pTrecho" maxlength="60" placeholder="Ex.: Estrada do talhão 12"></label>
+          <label>Km / referência<input id="pKm" maxlength="30" placeholder="Ex.: km 3,4"></label>
+          <label class="full">Intervalo entre molhagens (minutos)<input id="pInt" type="number" min="15" step="15" value="120"></label>
+          <div class="actions full"><button class="btn" type="submit">Adicionar ponto</button><span class="msg" id="pMsg" role="status"></span></div>
+        </form>
+        <div class="tablebox"><table id="pTable"></table></div>
+      </div>
+      <div class="sec">
+        <h2>Frotas</h2>
+        <form class="form" id="fFrota" novalidate>
+          <label>Prefixo / nº da frota<input id="fPref" maxlength="20" placeholder="Ex.: PIPA-104"></label>
+          <label>Capacidade do tanque (L)<input id="fCap" type="number" min="0" step="500" placeholder="ex.: 15000"></label>
+          <label class="full">Descrição<input id="fDesc" maxlength="60" placeholder="Ex.: Caminhão-pipa 6x4"></label>
+          <div class="actions full"><button class="btn" type="submit">Adicionar frota</button><span class="msg" id="fMsg" role="status"></span></div>
+        </form>
+        <div class="tablebox"><table id="fTable"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- USUÁRIOS -->
+  <section id="v-usuarios" class="sec" hidden>
+    <div class="sec-head"><h2>Usuários</h2><span class="note">Crie o acesso com uma senha provisória. A pessoa troca a senha no primeiro login.</span></div>
+    <form class="form" id="fUser" novalidate>
+      <label>Nome<input id="uNome" maxlength="80" placeholder="Nome e sobrenome"></label>
+      <label>Usuário (login)<input id="uLogin" maxlength="40" autocapitalize="none" spellcheck="false" placeholder="ex.: joao.silva"></label>
+      <label>Perfil<select id="uPapel"><option value="operador">Operador (registra molhagens)</option><option value="consulta">Consulta (apenas acompanha)</option><option value="admin">Administrador</option></select></label>
+      <label>Senha provisória<input id="uSenha" type="text" autocomplete="off" placeholder="mínimo 6 caracteres"></label>
+      <div class="actions full"><button class="btn" type="submit" id="uBtn">Criar usuário</button><span class="msg" id="uMsg" role="status"></span></div>
+    </form>
+    <div class="tablebox"><table id="uTable"></table></div>
+  </section>
+  </div>
+</div></main>
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const PAPEL={admin:"Administrador",operador:"Operador",consulta:"Consulta"};
+const ERROS={
+  LOGIN_INVALIDO:"Usuário ou senha incorretos.",
+  SESSAO_EXPIRADA:"Sua sessão expirou. Entre novamente.",
+  SEM_PERMISSAO:"Seu perfil não permite essa ação.",
+  SENHA_CURTA:"A senha precisa ter pelo menos 6 caracteres.",
+  SENHA_IGUAL:"A nova senha precisa ser diferente da atual.",
+  SENHA_ATUAL_ERRADA:"A senha atual está incorreta.",
+  USUARIO_INVALIDO:"Usuário deve ter de 3 a 40 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado, sem espaços nem acentos.",
+  USUARIO_EXISTE:"Já existe alguém com esse usuário.",
+  NOME_VAZIO:"Informe o nome.",
+  PREFIXO_VAZIO:"Informe o prefixo da frota.",
+  PAPEL_INVALIDO:"Perfil inválido.",
+  AUTO_ALTERACAO:"Você não pode desativar nem tirar o seu próprio acesso de administrador.",
+  PONTO_INVALIDO:"Esse ponto foi removido. Atualize a página.",
+  FROTA_INVALIDA:"Essa frota foi removida. Atualize a página.",
+  DATA_INVALIDA:"A data e hora não podem estar no futuro.",
+  VOLUME_INVALIDO:"Volume inválido.",
+  INTERVALO_INVALIDO:"O intervalo precisa ser de pelo menos 15 minutos.",
+  NAO_ENCONTRADO:"Registro não encontrado. Atualize a página.",
+  REDE:"Sem conexão com o servidor. Verifique a internet e tente de novo."
+};
+const msgErr=e=>ERROS[e&&e.message]||("Erro: "+(e&&e.message||"desconhecido"));
+const store={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v);}catch(e){}}};
+const URL_=String(window.SUPABASE_URL||"").trim().replace(/\/+$/,"");
+const KEY=String(window.SUPABASE_KEY||"").trim();
+
+let token=store.get("molh_token"),perfil=null,timer=null,dias=60,usuarios=[];
+const S={pontos:[],frotas:[],mol:[]};
+
+async function rpc(fn,args){
+  const h={"Content-Type":"application/json","apikey":KEY};
+  if(KEY.startsWith("eyJ"))h.Authorization="Bearer "+KEY;
+  let r;
+  try{r=await fetch(URL_+"/rest/v1/rpc/"+fn,{method:"POST",headers:h,body:JSON.stringify(args||{})});}
+  catch(e){throw new Error("REDE");}
+  const txt=await r.text();let data=null;try{data=txt?JSON.parse(txt):null;}catch(e){}
+  if(!r.ok){const code=(data&&data.message)||("HTTP "+r.status);
+    if(code==="SESSAO_EXPIRADA"&&fn!=="molh_login")sairLocal(ERROS.SESSAO_EXPIRADA);
+    throw new Error(code);}
+  return data;
+}
+
+/* ---------- util ---------- */
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const fmtHM=d=>pad(d.getHours())+":"+pad(d.getMinutes());
+const fmtDH=d=>pad(d.getDate())+"/"+pad(d.getMonth()+1)+" "+fmtHM(d);
+function fmtDur(min){min=Math.max(0,Math.round(min));const d=Math.floor(min/1440),h=Math.floor(min%1440/60),m=min%60;
+  if(d)return d+"d "+h+"h";if(h)return h+"h "+pad(m)+"min";return m+" min";}
+function whenLabel(d){const t=new Date();t.setHours(0,0,0,0);
+  const diff=Math.round((new Date(d).setHours(0,0,0,0)-t)/864e5);
+  const pre=diff===0?"hoje":diff===-1?"ontem":diff===1?"amanhã":pad(d.getDate())+"/"+pad(d.getMonth()+1);
+  return pre+" às "+fmtHM(d);}
+const fmtL=n=>n==null||n===""||isNaN(n)?"—":Number(n).toLocaleString("pt-BR")+" L";
+const byId=(arr,id)=>arr.find(x=>String(x.id)===String(id));
+const toLocalInput=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+fmtHM(d);
+const setMsg=(id,t,err)=>{const m=$(id);m.classList.toggle("err",!!err);m.textContent=t||"";if(t&&!err){clearTimeout(m._t);m._t=setTimeout(()=>m.textContent="",4000);}};
+const canReg=()=>!!perfil&&(perfil.papel==="operador"||perfil.papel==="admin");
+const canAdmin=()=>!!perfil&&perfil.papel==="admin";
+const canDelMol=m=>canAdmin()||(canReg()&&String(m.criado_por)===String(perfil.id));
+function banner(t){const b=$("#banner");b.innerHTML=t;b.hidden=!t;}
+
+/* ---------- cálculo por ponto ---------- */
+function pointInfo(p,now){
+  const list=S.mol.filter(m=>m.ponto_id===p.id);
+  const last=list[0]; const interval=Number(p.intervalo_min)||120;
+  let avg=null;
+  if(list.length>=3){const ts=list.slice(0,11).map(m=>+new Date(m.quando));let s=0;for(let i=0;i<ts.length-1;i++)s+=ts[i]-ts[i+1];avg=s/(ts.length-1)/6e4;}
+  if(!last)return{p,last:null,interval,avg,status:"none",ratio:0};
+  const lt=new Date(last.quando); const el=(now-lt)/6e4; const next=new Date(+lt+interval*6e4);
+  const ratio=el/interval; const status=ratio>=1?"late":ratio>=.75?"warn":"ok";
+  return{p,last,lt,el,next,interval,avg,ratio,status};
+}
+const ST={ok:"Em dia",warn:"Molhar em breve",late:"Atrasado",none:"Sem registro"};
+
+/* ---------- render ---------- */
+function renderPainel(){
+  const now=new Date();
+  const infos=S.pontos.map(p=>pointInfo(p,now)).sort((a,b)=>{
+    if(a.status==="none"&&b.status!=="none")return -1; if(b.status==="none"&&a.status!=="none")return 1; return b.ratio-a.ratio;});
+  const late=infos.filter(i=>i.status==="late"||i.status==="none").length, warn=infos.filter(i=>i.status==="warn").length;
+  const d24=S.mol.filter(m=>now-new Date(m.quando)<864e5);
+  const litros=d24.reduce((s,m)=>s+(Number(m.volume_l)||0),0);
+  $("#kpis").innerHTML=
+    `<div class="kpi ${late?"late":""}"><div class="lbl">Atrasados / sem registro</div><div class="val">${late}<small> de ${S.pontos.length}</small></div></div>`+
+    `<div class="kpi ${warn?"warn":""}"><div class="lbl">Molhar em breve</div><div class="val">${warn}</div></div>`+
+    `<div class="kpi"><div class="lbl">Molhagens em 24 h</div><div class="val">${d24.length}</div></div>`+
+    `<div class="kpi"><div class="lbl">Água aplicada em 24 h</div><div class="val">${(litros/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})}<small> m³</small></div></div>`;
+  const reg=canReg();
+  if(!S.pontos.length){$("#cards").innerHTML=`<div class="empty">Nenhum ponto cadastrado ainda.${canAdmin()?" Cadastre os trechos em <b>Frotas e pontos</b> para começar.":" O administrador ainda vai cadastrar os trechos."}</div>`;}
+  else $("#cards").innerHTML=infos.map(i=>{
+    const p=i.p; const fr=i.last?byId(S.frotas,i.last.frota_id):null;
+    const w=Math.min(100,(i.ratio||0)*100);
+    let prev="";
+    if(i.last){const left=(i.next-now)/6e4;
+      prev=left>=0?`${whenLabel(i.next)} <span style="color:var(--muted)">(em ${fmtDur(left)})</span>`:`<b style="color:var(--late)">${whenLabel(i.next)} · atrasada ${fmtDur(-left)}</b>`;}
+    return `<article class="card">
+      <div class="card-top"><div class="t"><h3>${esc(p.nome)}</h3>
+        <div class="sub">${esc([p.trecho,p.km].filter(Boolean).join(" · "))||"&nbsp;"}</div></div>
+        <span class="pill ${i.status}">${ST[i.status]}</span></div>
+      ${i.last?`<div class="elapsed"><span class="big">${fmtDur(i.el)}</span><span class="cap">desde a última molhagem</span></div>
+      <div class="bar ${i.status}" role="img" aria-label="${Math.round(w)}% do intervalo"><i style="width:${w}%"></i></div>`
+      :`<div class="elapsed"><span class="big">—</span><span class="cap">nenhuma molhagem registrada</span></div><div class="bar"><i style="width:0"></i></div>`}
+      <dl class="facts">
+        <dt>Última</dt><dd>${i.last?`${whenLabel(i.lt)} · ${esc(fr?fr.prefixo:"frota removida")}`:"—"}</dd>
+        <dt>Próxima prevista</dt><dd>${i.last?prev:"assim que possível"}</dd>
+        <dt>Intervalo</dt><dd>${fmtDur(i.interval)}${i.avg?` <span style="color:var(--muted)">· real médio ${fmtDur(i.avg)}</span>`:""}</dd>
+      </dl>
+      ${reg?`<div class="actions"><button class="btn small" data-reg="${p.id}">Registrar molhagem aqui</button></div>`:""}
+    </article>`;}).join("");
+  renderTimeline(now);
+  const rows=S.frotas.map(f=>{const ms=d24.filter(m=>m.frota_id===f.id);
+    const L=ms.reduce((s,m)=>s+(Number(m.volume_l)||0),0); const lp=ms[0]?byId(S.pontos,ms[0].ponto_id):null;
+    return{f,n:ms.length,L,last:ms[0],lp};}).sort((a,b)=>b.n-a.n);
+  $("#fleetTable").innerHTML=`<thead><tr><th>Frota</th><th class="num">Molhagens</th><th class="num">Volume</th><th>Última molhagem</th><th>Onde</th></tr></thead><tbody>`+
+    (rows.length?rows.map(r=>`<tr><td><b>${esc(r.f.prefixo)}</b> <span style="color:var(--muted)">${esc(r.f.descricao||"")}</span></td><td class="num">${r.n}</td><td class="num">${fmtL(r.L)}</td><td class="mono">${r.last?whenLabel(new Date(r.last.quando)):"—"}</td><td>${r.lp?esc(r.lp.nome):"—"}</td></tr>`).join("")
+    :`<tr><td colspan="5" style="color:var(--muted)">Nenhuma frota cadastrada.</td></tr>`)+"</tbody>";
+}
+
+function renderTimeline(now){
+  const box=$("#timeline"); if(!S.pontos.length){box.innerHTML=`<p style="color:var(--muted);margin:0">Sem pontos cadastrados.</p>`;return;}
+  const L=170,R=16,W=960,rowH=26,top=8,H=top+S.pontos.length*rowH+26; const t0=+now-864e5; const x=t=>L+(t-t0)/864e5*(W-L-R);
+  let g="";
+  for(let h=0;h<=24;h+=3){const t=t0+h*36e5;const X=x(t);
+    g+=`<line x1="${X}" x2="${X}" y1="${top}" y2="${H-22}" stroke="var(--line)" stroke-width="1"/><text x="${X}" y="${H-6}" text-anchor="${h===0?"start":h===24?"end":"middle"}">${h===24?"agora":fmtHM(new Date(t))}</text>`;}
+  S.pontos.forEach((p,i)=>{const cy=top+i*rowH+rowH/2;
+    g+=`<text class="name" x="0" y="${cy+4}">${esc(p.nome.length>24?p.nome.slice(0,23)+"…":p.nome)}</text>`;
+    g+=`<rect x="${L}" y="${cy-5}" width="${W-L-R}" height="10" rx="5" fill="var(--surface-2)"/>`;
+    S.mol.filter(m=>m.ponto_id===p.id&&+new Date(m.quando)>=t0&&+new Date(m.quando)<=+now).forEach(m=>{
+      const X=x(+new Date(m.quando));const f=byId(S.frotas,m.frota_id);
+      g+=`<rect x="${X-2}" y="${cy-9}" width="4" height="18" rx="2" fill="var(--water)"><title>${esc(fmtDH(new Date(m.quando)))} · ${esc(f?f.prefixo:"")}</title></rect>`;});
+  });
+  box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Molhagens por ponto nas últimas 24 horas">${g}</svg>`;
+}
+
+function fillSelect(sel,items,label,withAll){
+  const cur=sel.value;
+  sel.innerHTML=(withAll?`<option value="">Todos</option>`:"")+items.map(i=>`<option value="${i.id}">${esc(label(i))}</option>`).join("");
+  if([...sel.options].some(o=>o.value===cur))sel.value=cur;
+}
+function renderSelects(){
+  const pl=p=>p.nome+(p.km?" — "+p.km:""), fl=f=>f.prefixo+(f.descricao?" — "+f.descricao:"");
+  fillSelect($("#mPonto"),S.pontos,pl); fillSelect($("#mFrota"),S.frotas,fl);
+  fillSelect($("#hPonto"),S.pontos,pl,true); fillSelect($("#hFrota"),S.frotas,fl,true);
+}
+
+function renderHistorico(){
+  const pp=$("#hPonto").value, ff=$("#hFrota").value, d=+$("#hPeriodo").value; const now=Date.now();
+  const list=S.mol.filter(m=>(!pp||String(m.ponto_id)===pp)&&(!ff||String(m.frota_id)===ff)&&(now-new Date(m.quando)<d*864e5)).slice(0,1000);
+  const gap=m=>{const idx=S.mol.indexOf(m);const prev=S.mol.slice(idx+1).find(x=>x.ponto_id===m.ponto_id);return prev?(new Date(m.quando)-new Date(prev.quando))/6e4:null;};
+  const L=list.reduce((s,m)=>s+(Number(m.volume_l)||0),0);
+  $("#hCount").textContent=`${list.length} registro${list.length===1?"":"s"} · ${fmtL(L)}`;
+  $("#hTable").innerHTML=`<thead><tr><th>Data e hora</th><th>Ponto</th><th>Frota</th><th class="num">Volume</th><th class="num">Desde a anterior</th><th>Motorista</th><th>Condição</th><th>Observação</th><th>Lançado por</th><th></th></tr></thead><tbody>`+
+    (list.length?list.map(m=>{const p=byId(S.pontos,m.ponto_id),f=byId(S.frotas,m.frota_id);const g=gap(m);
+      return `<tr><td class="mono">${fmtDH(new Date(m.quando))}</td><td>${esc(p?p.nome:"(removido)")}</td><td>${esc(f?f.prefixo:"(removida)")}</td><td class="num">${fmtL(m.volume_l)}</td><td class="num">${g==null?"—":fmtDur(g)}</td><td>${esc(m.motorista||"—")}</td><td>${esc(m.condicao||"—")}</td><td style="white-space:normal;min-width:160px">${esc(m.obs||"")}</td><td>${esc(m.lancado_por||"—")}</td><td>${canDelMol(m)?`<button class="btn danger small" data-del="mol:${m.id}">Excluir</button>`:""}</td></tr>`;}).join("")
+    :`<tr><td colspan="10" style="color:var(--muted)">Nenhuma molhagem no filtro escolhido.</td></tr>`)+"</tbody>";
+}
+
+function renderCadastros(){
+  if(!canAdmin())return;
+  $("#pTable").innerHTML=`<thead><tr><th>Ponto</th><th>Trecho</th><th class="num">Intervalo</th><th></th></tr></thead><tbody>`+
+    (S.pontos.length?S.pontos.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td>${esc([p.trecho,p.km].filter(Boolean).join(" · ")||"—")}</td>
+      <td class="num"><input type="number" min="15" step="15" value="${Number(p.intervalo_min)||120}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min</td>
+      <td><button class="btn danger small" data-del="ponto:${p.id}">Remover</button></td></tr>`).join("")
+    :`<tr><td colspan="4" style="color:var(--muted)">Nenhum ponto cadastrado.</td></tr>`)+"</tbody>";
+  $("#fTable").innerHTML=`<thead><tr><th>Frota</th><th>Descrição</th><th class="num">Tanque</th><th></th></tr></thead><tbody>`+
+    (S.frotas.length?S.frotas.map(f=>`<tr><td><b>${esc(f.prefixo)}</b></td><td>${esc(f.descricao||"—")}</td><td class="num">${fmtL(f.capacidade_l)}</td><td><button class="btn danger small" data-del="frota:${f.id}">Remover</button></td></tr>`).join("")
+    :`<tr><td colspan="4" style="color:var(--muted)">Nenhuma frota cadastrada.</td></tr>`)+"</tbody>";
+}
+
+function renderUsuarios(){
+  if(!canAdmin())return;
+  $("#uTable").innerHTML=`<thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Situação</th><th>Nova senha provisória</th><th></th></tr></thead><tbody>`+
+    usuarios.map(u=>{const me=String(u.id)===String(perfil.id);
+      return `<tr class="${u.ativo?"":"off"}" data-uid="${u.id}"><td><b>${esc(u.nome)}</b>${me?' <span class="tag">você</span>':""}</td><td class="mono">${esc(u.usuario)}</td>
+      <td><select data-f="papel" aria-label="Perfil" ${me?"disabled":""}>${Object.keys(PAPEL).map(k=>`<option value="${k}"${u.papel===k?" selected":""}>${PAPEL[k]}</option>`).join("")}</select></td>
+      <td><select data-f="ativo" aria-label="Situação" ${me?"disabled":""}><option value="1"${u.ativo?" selected":""}>Ativo</option><option value="0"${u.ativo?"":" selected"}>Desativado</option></select>${u.troca_senha&&u.ativo?'<span class="meta" style="display:block;font-size:12px;color:var(--muted)">aguardando 1º acesso</span>':""}</td>
+      <td><input data-f="senha" type="text" autocomplete="off" placeholder="deixe vazio para manter" style="min-width:170px"></td>
+      <td><button class="btn small" data-usave="${u.id}">Salvar</button></td></tr>`;}).join("")+"</tbody>";
+}
+
+function renderAll(){renderSelects();renderPainel();renderHistorico();renderCadastros();}
+function tick(){const n=new Date();$("#clock").textContent=fmtHM(n)+" · "+n.toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"});}
+
+/* ---------- dados ---------- */
+async function carregar(){
+  const r=await rpc("molh_dados",{p_token:token,p_dias:dias});
+  perfil=r.perfil;S.pontos=r.pontos||[];S.frotas=r.frotas||[];S.mol=r.molhagens||[];
+  renderAll(); banner("");
+}
+async function carregarUsuarios(){if(!canAdmin())return;try{usuarios=await rpc("molh_usuarios_lista",{p_token:token})||[];renderUsuarios();}catch(e){setMsg("#uMsg",msgErr(e),true);}}
+
+/* ---------- telas ---------- */
+const VIEWS=["vConfig","vLogin","vSenha","vApp"];
+function tela(v){VIEWS.forEach(x=>$("#"+x).hidden=x!==v);$("#tabs").hidden=v!=="vApp";$("#who").hidden=!perfil||v==="vLogin";}
+function allowed(){const v=["painel","historico"];if(canReg())v.push("registrar");if(canAdmin())v.push("cadastros","usuarios");return v;}
+function aba(v){const ok=allowed();if(!ok.includes(v))v="painel";
+  ["painel","registrar","historico","cadastros","usuarios"].forEach(x=>$("#v-"+x).hidden=x!==v);
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===v?"true":"false"));
+  if(v==="usuarios")carregarUsuarios();}
+$("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;history.replaceState(null,"","#"+b.dataset.v);aba(b.dataset.v);});
+addEventListener("hashchange",()=>{if(perfil)aba(location.hash.slice(1));});
+
+function sairLocal(aviso){token=null;perfil=null;store.set("molh_token",null);clearInterval(timer);tela("vLogin");setMsg("#lMsg",aviso||"",!!aviso);$("#lPass").value="";}
+
+async function entrar(){
+  if(perfil&&perfil.troca_senha){abrirSenha(true);return;}
+  try{await carregar();}catch(e){if(e.message!=="SESSAO_EXPIRADA"){tela("vLogin");setMsg("#lMsg",msgErr(e),true);}return;}
+  if(perfil.troca_senha){abrirSenha(true);return;}
+  $("#whoName").textContent=perfil.nome;$("#whoRole").textContent=PAPEL[perfil.papel]||perfil.papel;
+  $("#tabReg").hidden=!canReg();$("#tabCad").hidden=!canAdmin();$("#tabUsr").hidden=!canAdmin();
+  $("#mQuando").value=toLocalInput(new Date());
+  tela("vApp");aba(location.hash.slice(1));
+  if(perfil.papel==="consulta")banner("Seu acesso é de <b>consulta</b>: você acompanha o painel e o histórico, sem registrar molhagens.");
+  clearInterval(timer);
+  timer=setInterval(async()=>{tick();if(document.hidden)return;try{await carregar();}catch(e){if(e.message==="REDE")banner("Sem conexão com o servidor. Os dados voltam a atualizar quando a internet voltar.");}},30000);
+}
+
+/* ---------- login / senha ---------- */
+$("#fLogin").addEventListener("submit",async e=>{e.preventDefault();
+  const u=$("#lUser").value.trim().toLowerCase(),p=$("#lPass").value;
+  if(!u||!p){setMsg("#lMsg","Preencha usuário e senha.",true);return;}
+  $("#lBtn").disabled=true;setMsg("#lMsg","Entrando…");
+  try{const r=await rpc("molh_login",{p_usuario:u,p_senha:p});token=r.token;store.set("molh_token",token);perfil=r.perfil;$("#lPass").value="";setMsg("#lMsg","");await entrar();}
+  catch(err){setMsg("#lMsg",msgErr(err),true);}
+  $("#lBtn").disabled=false;
+});
+function abrirSenha(obrig){["#sAtual","#sNova","#sConf"].forEach(i=>$(i).value="");setMsg("#sMsg","");
+  $("#sNote").textContent=obrig?"Por segurança, troque a senha provisória antes de continuar.":"Escolha uma nova senha para sua conta.";
+  $("#sCancel").hidden=obrig;tela("vSenha");$("#sAtual").focus();}
+$("#bSenha").addEventListener("click",()=>abrirSenha(false));
+$("#sCancel").addEventListener("click",()=>tela("vApp"));
+$("#bSair").addEventListener("click",async()=>{try{await rpc("molh_sair",{p_token:token});}catch(e){}sairLocal("");});
+$("#fSenha").addEventListener("submit",async e=>{e.preventDefault();
+  const a=$("#sAtual").value,n=$("#sNova").value,c=$("#sConf").value;
+  if(n.length<6){setMsg("#sMsg",ERROS.SENHA_CURTA,true);return;}
+  if(n!==c){setMsg("#sMsg","As duas senhas novas não conferem.",true);return;}
+  $("#sBtn").disabled=true;
+  try{perfil=await rpc("molh_trocar_senha",{p_token:token,p_atual:a,p_nova:n});await entrar();}
+  catch(err){setMsg("#sMsg",msgErr(err),true);}
+  $("#sBtn").disabled=false;
+});
+
+/* ---------- formulários ---------- */
+$("#fMol").addEventListener("submit",async e=>{e.preventDefault();
+  const ponto=$("#mPonto").value,frota=$("#mFrota").value,q=$("#mQuando").value;
+  if(!ponto||!frota){setMsg("#mMsg","Escolha o ponto e a frota. Se a lista estiver vazia, peça ao administrador para cadastrá-los.",true);return;}
+  if(!q){setMsg("#mMsg","Informe a data e a hora da molhagem.",true);return;}
+  const quando=new Date(q);const v=$("#mVolume").value;
+  $("#mSave").disabled=true;
+  try{await rpc("molh_registrar",{p_token:token,p_ponto:+ponto,p_frota:+frota,p_quando:quando.toISOString(),p_volume:v===""?null:Math.round(+v),p_motorista:$("#mMotorista").value,p_condicao:$("#mCond").value,p_obs:$("#mObs").value});
+    const p=byId(S.pontos,ponto);setMsg("#mMsg",`Molhagem salva: ${p?p.nome:""} às ${fmtHM(quando)}.`);$("#mObs").value="";$("#mQuando").value=toLocalInput(new Date());await carregar();}
+  catch(err){setMsg("#mMsg",msgErr(err),true);}
+  $("#mSave").disabled=false;
+});
+$("#fPonto").addEventListener("submit",async e=>{e.preventDefault();
+  try{await rpc("molh_salvar_ponto",{p_token:token,p_id:null,p_nome:$("#pNome").value,p_trecho:$("#pTrecho").value,p_km:$("#pKm").value,p_intervalo:Math.round(+$("#pInt").value)});
+    setMsg("#pMsg","Ponto adicionado.");$("#pNome").value="";$("#pKm").value="";await carregar();}
+  catch(err){setMsg("#pMsg",msgErr(err),true);}
+});
+$("#fFrota").addEventListener("submit",async e=>{e.preventDefault();const c=$("#fCap").value;
+  try{await rpc("molh_salvar_frota",{p_token:token,p_id:null,p_prefixo:$("#fPref").value,p_descricao:$("#fDesc").value,p_capacidade:c===""?null:Math.round(+c)});
+    setMsg("#fMsg","Frota adicionada.");$("#fPref").value="";$("#fDesc").value="";$("#fCap").value="";await carregar();}
+  catch(err){setMsg("#fMsg",msgErr(err),true);}
+});
+$("#fUser").addEventListener("submit",async e=>{e.preventDefault();$("#uBtn").disabled=true;
+  try{await rpc("molh_salvar_usuario",{p_token:token,p_id:null,p_usuario:$("#uLogin").value,p_nome:$("#uNome").value,p_papel:$("#uPapel").value,p_senha:$("#uSenha").value,p_ativo:true});
+    setMsg("#uMsg",`Usuário ${$("#uLogin").value.trim().toLowerCase()} criado. Passe o usuário e a senha provisória para a pessoa.`);
+    ["#uNome","#uLogin","#uSenha"].forEach(i=>$(i).value="");await carregarUsuarios();}
+  catch(err){setMsg("#uMsg",msgErr(err),true);}
+  $("#uBtn").disabled=false;
+});
+
+/* ---------- cliques ---------- */
+document.addEventListener("click",async e=>{
+  const r=e.target.closest("[data-reg]");
+  if(r){$("#mPonto").value=r.dataset.reg;$("#mQuando").value=toLocalInput(new Date());
+    const last=S.mol.find(m=>String(m.ponto_id)===r.dataset.reg);if(last&&byId(S.frotas,last.frota_id))$("#mFrota").value=last.frota_id;
+    history.replaceState(null,"","#registrar");aba("registrar");$("#mFrota").focus();return;}
+  const us=e.target.closest("[data-usave]");
+  if(us){const row=us.closest("tr");const u=byId(usuarios,us.dataset.usave);if(!u)return;
+    const senha=row.querySelector('[data-f="senha"]').value;us.disabled=true;
+    try{await rpc("molh_salvar_usuario",{p_token:token,p_id:u.id,p_usuario:u.usuario,p_nome:u.nome,p_papel:row.querySelector('[data-f="papel"]').value,p_senha:senha,p_ativo:row.querySelector('[data-f="ativo"]').value==="1"});
+      setMsg("#uMsg",senha?`Senha de ${u.usuario} redefinida. A pessoa troca no próximo acesso.`:`Usuário ${u.usuario} atualizado.`);await carregarUsuarios();}
+    catch(err){setMsg("#uMsg",msgErr(err),true);us.disabled=false;}
+    return;}
+  const d=e.target.closest("[data-del]");
+  if(d){
+    if(!d.classList.contains("armed")){d.classList.add("armed");d._txt=d.textContent;d.textContent="Confirmar?";setTimeout(()=>{if(d.isConnected){d.classList.remove("armed");d.textContent=d._txt;}},3500);return;}
+    const[tipo,id]=d.dataset.del.split(":");d.disabled=true;
+    const fn={mol:"molh_excluir_molhagem",ponto:"molh_remover_ponto",frota:"molh_remover_frota"}[tipo];
+    try{await rpc(fn,{p_token:token,p_id:+id});await carregar();}catch(err){d.disabled=false;d.textContent="Falhou";banner(esc(msgErr(err)));}
+  }
+});
+const intTimer={};
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset&&t.dataset.int&&canAdmin()){const p=byId(S.pontos,t.dataset.int),v=Math.round(+t.value);
+    if(!p||!(v>=15)){t.value=p?p.intervalo_min:120;return;}
+    clearTimeout(intTimer[p.id]);intTimer[p.id]=setTimeout(()=>rpc("molh_salvar_ponto",{p_token:token,p_id:p.id,p_nome:p.nome,p_trecho:p.trecho,p_km:p.km,p_intervalo:v}).then(carregar).catch(err=>banner(esc(msgErr(err)))),400);}
+  if(t.id==="hPeriodo"){const d=+t.value;if(d>dias){dias=d;carregar().catch(()=>{});}else renderHistorico();}
+  if(t.id==="hPonto"||t.id==="hFrota")renderHistorico();
+});
+
+/* ---------- início ---------- */
+tick();
+if(!URL_||!KEY){tela("vConfig");}
+else if(!token){tela("vLogin");}
+else{tela("vLogin");setMsg("#lMsg","Entrando…");entrar().then(()=>{if(perfil)setMsg("#lMsg","");});}
+})();
+</script>
+</body>
+</html>
