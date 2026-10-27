@@ -235,16 +235,14 @@ tr:last-child td{border-bottom:0}
       <label>Saiu de<input id="tOrigem" maxlength="60" list="origens" value="Base" placeholder="Ex.: Base"><datalist id="origens"></datalist></label>
       <label>Destino (ponto a molhar)<select id="tDestino"></select></label>
       <label>Horário da saída<input id="tSaida" type="datetime-local"></label>
-      <label>Motorista<input id="tMotorista" type="text" maxlength="80" placeholder="Nome"></label>
-      <label>Observação<input id="tObs" type="text" maxlength="300" placeholder="Opcional"></label>
+      <label class="full">Observação<input id="tObs" type="text" maxlength="300" placeholder="Opcional"></label>
       <div class="actions full"><button class="btn" type="submit" id="tSave">Registrar saída</button><span class="msg" id="tMsg" role="status"></span></div>
     </form>
     <div class="sec-head" style="margin-top:12px"><h2>Registrar molhagem</h2><span class="note">Informe onde e com qual caminhão a estrada foi molhada.</span></div>
     <form class="form" id="fMol" novalidate>
       <label>Ponto / trecho<select id="mPonto"></select></label>
       <label>Frota (caminhão-pipa)<select id="mFrota"></select></label>
-      <label>Data e hora<input id="mQuando" type="datetime-local"></label>
-      <label>Motorista<input id="mMotorista" type="text" maxlength="80" placeholder="Nome"></label>
+      <label class="full">Data e hora<input id="mQuando" type="datetime-local"></label>
       <label class="full">Observação<textarea id="mObs" maxlength="300" placeholder="Ex.: molhado só o lado da descida"></textarea></label>
       <div class="actions full"><button class="btn" type="submit" id="mSave">Salvar molhagem</button><span class="msg" id="mMsg" role="status"></span></div>
     </form>
@@ -443,7 +441,7 @@ function renderTrips(now,ativos){
     return `<article class="trip" data-tid="${t.id}">
       <div class="card-top"><div class="t"><div class="tf">${esc(f?f.prefixo:"Frota removida")}</div></div><span class="pill ok">Em trajeto</span></div>
       <div class="route"><span class="end">${esc(t.origem)}</span><span class="line" aria-hidden="true"></span><span class="end to">${esc(d?d.nome:"Ponto removido")}</span></div>
-      <div class="meta">Saiu ${whenLabel(s)} · <b>há ${fmtDur((now-s)/6e4)}</b>${t.motorista?` · ${esc(t.motorista)}`:""}${t.obs?`<br>${esc(t.obs)}`:""}</div>
+      <div class="meta">Saiu ${whenLabel(s)} · <b>há ${fmtDur((now-s)/6e4)}</b>${t.obs?`<br>${esc(t.obs)}`:""}</div>
       ${reg?(open?`<div class="chg"><label>Horário da chegada<input type="datetime-local" id="chg-${t.id}" value="${chegVal||toLocalInput(new Date())}"></label>
           <button class="btn small" data-tok="${t.id}">Confirmar e registrar molhagem</button><button class="btn small ghost" data-tback="1">Voltar</button></div>`
         :`<div class="actions"><button class="btn small" data-tarr="${t.id}">Chegou e molhou</button><button class="btn danger small" data-tcan="${t.id}">Cancelar trajeto</button></div>`):""}
@@ -488,10 +486,10 @@ function renderHistorico(){
   const list=S.mol.filter(m=>(!pp||String(m.ponto_id)===pp)&&(!ff||String(m.frota_id)===ff)&&(now-new Date(m.quando)<d*864e5)).slice(0,1000);
   const gap=m=>{const idx=S.mol.indexOf(m);const prev=S.mol.slice(idx+1).find(x=>x.ponto_id===m.ponto_id);return prev?(new Date(m.quando)-new Date(prev.quando))/6e4:null;};
   $("#hCount").textContent=`${list.length} registro${list.length===1?"":"s"}`;
-  $("#hTable").innerHTML=`<thead><tr><th>Data e hora</th><th>Ponto</th><th>Frota</th><th class="num">Tempo de trajeto</th><th class="num">Desde a anterior</th><th>Motorista</th><th>Observação</th><th>Lançado por</th><th></th></tr></thead><tbody>`+
+  $("#hTable").innerHTML=`<thead><tr><th>Data e hora</th><th>Ponto</th><th>Frota</th><th class="num">Tempo de trajeto</th><th class="num">Desde a anterior</th><th>Observação</th><th>Lançado por</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(m=>{const p=byId(S.pontos,m.ponto_id),f=byId(S.frotas,m.frota_id);const g=gap(m);
-      return `<tr><td class="mono">${fmtDH(new Date(m.quando))}</td><td>${esc(p?p.nome:"(removido)")}</td><td>${esc(f?f.prefixo:"(removida)")}</td><td class="num">${m.saida?`${fmtDur((new Date(m.quando)-new Date(m.saida))/6e4)} <span style="color:var(--muted)">de ${esc(m.origem||"")}</span>`:"—"}</td><td class="num">${g==null?"—":fmtDur(g)}</td><td>${esc(m.motorista||"—")}</td><td style="white-space:normal;min-width:160px">${esc(m.obs||"")}</td><td>${esc(m.lancado_por||"—")}</td><td>${canDelMol(m)?`<button class="btn danger small" data-del="mol:${m.id}">Excluir</button>`:""}</td></tr>`;}).join("")
-    :`<tr><td colspan="9" style="color:var(--muted)">Nenhuma molhagem no filtro escolhido.</td></tr>`)+"</tbody>";
+      return `<tr><td class="mono">${fmtDH(new Date(m.quando))}</td><td>${esc(p?p.nome:"(removido)")}</td><td>${esc(f?f.prefixo:"(removida)")}</td><td class="num">${m.saida?`${fmtDur((new Date(m.quando)-new Date(m.saida))/6e4)} <span style="color:var(--muted)">de ${esc(m.origem||"")}</span>`:"—"}</td><td class="num">${g==null?"—":fmtDur(g)}</td><td style="white-space:normal;min-width:160px">${esc(m.obs||"")}</td><td>${esc(m.lancado_por||"—")}</td><td>${canDelMol(m)?`<button class="btn danger small" data-del="mol:${m.id}">Excluir</button>`:""}</td></tr>`;}).join("")
+    :`<tr><td colspan="8" style="color:var(--muted)">Nenhuma molhagem no filtro escolhido.</td></tr>`)+"</tbody>";
 }
 
 function renderCadastros(){
@@ -587,7 +585,7 @@ $("#fMol").addEventListener("submit",async e=>{e.preventDefault();
   if(!q){setMsg("#mMsg","Informe a data e a hora da molhagem.",true);return;}
   const quando=new Date(q);
   $("#mSave").disabled=true;
-  try{await rpc("molh_registrar",{p_token:token,p_ponto:+ponto,p_frota:+frota,p_quando:quando.toISOString(),p_volume:null,p_motorista:$("#mMotorista").value,p_condicao:"",p_obs:$("#mObs").value});
+  try{await rpc("molh_registrar",{p_token:token,p_ponto:+ponto,p_frota:+frota,p_quando:quando.toISOString(),p_volume:null,p_motorista:"",p_condicao:"",p_obs:$("#mObs").value});
     const p=byId(S.pontos,ponto);setMsg("#mMsg",`Molhagem salva: ${p?p.nome:""} às ${fmtHM(quando)}.`);$("#mObs").value="";$("#mQuando").value=toLocalInput(new Date());await carregar();}
   catch(err){setMsg("#mMsg",msgErr(err),true);}
   $("#mSave").disabled=false;
@@ -597,10 +595,10 @@ $("#fTraj").addEventListener("submit",async e=>{e.preventDefault();
   if(!frota||!dest){setMsg("#tMsg","Escolha a frota e o destino. Se a lista estiver vazia, cadastre-os em Frotas e pontos.",true);return;}
   if(!q){setMsg("#tMsg","Informe o horário da saída.",true);return;}
   const saida=new Date(q);$("#tSave").disabled=true;
-  try{await rpc("molh_iniciar_trajeto",{p_token:token,p_frota:+frota,p_destino:+dest,p_origem:$("#tOrigem").value,p_saida:saida.toISOString(),p_motorista:$("#tMotorista").value,p_obs:$("#tObs").value});
+  try{await rpc("molh_iniciar_trajeto",{p_token:token,p_frota:+frota,p_destino:+dest,p_origem:$("#tOrigem").value,p_saida:saida.toISOString(),p_motorista:"",p_obs:$("#tObs").value});
     const f=byId(S.frotas,frota),d=byId(S.pontos,dest);
     setMsg("#tMsg",`Saída registrada: ${f?f.prefixo:""} saiu de ${$("#tOrigem").value||"Base"} às ${fmtHM(saida)} para ${d?d.nome:""}.`);
-    $("#tObs").value="";$("#tMotorista").value="";$("#tSaida").value=toLocalInput(new Date());await carregar();}
+    $("#tObs").value="";$("#tSaida").value=toLocalInput(new Date());await carregar();}
   catch(err){setMsg("#tMsg",msgErr(err),true);}
   $("#tSave").disabled=false;
 });
