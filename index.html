@@ -492,17 +492,49 @@ function renderHistorico(){
     :`<tr><td colspan="8" style="color:var(--muted)">Nenhuma molhagem no filtro escolhido.</td></tr>`)+"</tbody>";
 }
 
+let editando=null; // {tipo:"ponto"|"frota", id}
 function renderCadastros(){
   if(!canReg())return;const adm=canAdmin();
   $("#pIntBox").hidden=!adm;
-  $("#pTable").innerHTML=`<thead><tr><th>Ponto</th><th>Trecho</th><th class="num">Intervalo</th><th></th></tr></thead><tbody>`+
+  if(editando)return; // não apaga o que está sendo digitado durante a atualização automática
+  const iv=p=>Number(p.intervalo_min)||360;
+  $("#pTable").innerHTML=`<thead><tr><th>Ponto</th><th>Trecho / km</th><th class="num">Intervalo</th><th></th></tr></thead><tbody>`+
     (S.pontos.length?S.pontos.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td>${esc([p.trecho,p.km].filter(Boolean).join(" · ")||"—")}</td>
-      <td class="num">${adm?`<input type="number" min="15" step="15" value="${Number(p.intervalo_min)||360}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min`:fmtDur(Number(p.intervalo_min)||360)}</td>
-      <td>${adm?`<button class="btn danger small" data-del="ponto:${p.id}">Remover</button>`:""}</td></tr>`).join("")
+      <td class="num">${adm?`<input type="number" min="15" step="15" value="${iv(p)}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min`:fmtDur(iv(p))}</td>
+      <td><span class="ucell"><button class="btn ghost small" data-edit="ponto:${p.id}">Editar</button>${adm?`<button class="btn danger small" data-del="ponto:${p.id}">Remover</button>`:""}</span></td></tr>`).join("")
     :`<tr><td colspan="4" style="color:var(--muted)">Nenhum ponto cadastrado.</td></tr>`)+"</tbody>";
   $("#fTable").innerHTML=`<thead><tr><th>Frota</th><th>Descrição</th><th class="num">Tanque</th><th></th></tr></thead><tbody>`+
-    (S.frotas.length?S.frotas.map(f=>`<tr><td><b>${esc(f.prefixo)}</b></td><td>${esc(f.descricao||"—")}</td><td class="num">${fmtL(f.capacidade_l)}</td><td>${adm?`<button class="btn danger small" data-del="frota:${f.id}">Remover</button>`:""}</td></tr>`).join("")
+    (S.frotas.length?S.frotas.map(f=>`<tr><td><b>${esc(f.prefixo)}</b></td><td>${esc(f.descricao||"—")}</td><td class="num">${fmtL(f.capacidade_l)}</td>
+      <td><span class="ucell"><button class="btn ghost small" data-edit="frota:${f.id}">Editar</button>${adm?`<button class="btn danger small" data-del="frota:${f.id}">Remover</button>`:""}</span></td></tr>`).join("")
     :`<tr><td colspan="4" style="color:var(--muted)">Nenhuma frota cadastrada.</td></tr>`)+"</tbody>";
+}
+function abrirEdicao(tipo,id){
+  editando={tipo,id};const adm=canAdmin();
+  const btns=`<span class="ucell"><button class="btn small" data-esave="1">Salvar</button><button class="btn ghost small" data-ecancel="1">Cancelar</button></span>`;
+  const inp=(k,v,ph,w)=>`<input data-e="${k}" value="${esc(v??"")}" placeholder="${ph}" style="min-width:${w||120}px;padding:5px 8px">`;
+  if(tipo==="ponto"){const p=byId(S.pontos,id);if(!p)return;
+    const tr=document.querySelector(`[data-edit="ponto:${id}"]`).closest("tr");
+    tr.innerHTML=`<td>${inp("nome",p.nome,"Nome do ponto",160)}</td><td><span class="ucell">${inp("trecho",p.trecho,"Trecho")}${inp("km",p.km,"Km",80)}</span></td>
+      <td class="num">${adm?`<input type="number" min="15" step="15" data-e="intervalo" value="${Number(p.intervalo_min)||360}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min`:fmtDur(Number(p.intervalo_min)||360)}</td><td>${btns}</td>`;
+    tr.querySelector('[data-e="nome"]').focus();}
+  else{const f=byId(S.frotas,id);if(!f)return;
+    const tr=document.querySelector(`[data-edit="frota:${id}"]`).closest("tr");
+    tr.innerHTML=`<td>${inp("prefixo",f.prefixo,"Prefixo",100)}</td><td>${inp("descricao",f.descricao,"Descrição",160)}</td>
+      <td class="num"><input type="number" min="0" step="500" data-e="capacidade" value="${f.capacidade_l??""}" placeholder="L" style="width:100px;padding:4px 6px"></td><td>${btns}</td>`;
+    tr.querySelector('[data-e="prefixo"]').focus();}
+}
+async function salvarEdicao(btn){
+  const tr=btn.closest("tr"),v=k=>{const el=tr.querySelector(`[data-e="${k}"]`);return el?el.value:null;};
+  const msg=editando.tipo==="ponto"?"#pMsg":"#fMsg";btn.disabled=true;
+  try{
+    if(editando.tipo==="ponto"){const p=byId(S.pontos,editando.id);
+      await rpc("molh_salvar_ponto",{p_token:token,p_id:p.id,p_nome:v("nome"),p_trecho:v("trecho"),p_km:v("km"),p_intervalo:v("intervalo")!=null?Math.round(+v("intervalo")):p.intervalo_min});
+      setMsg(msg,"Ponto atualizado.");}
+    else{const c=v("capacidade");
+      await rpc("molh_salvar_frota",{p_token:token,p_id:editando.id,p_prefixo:v("prefixo"),p_descricao:v("descricao"),p_capacidade:c===""?null:Math.round(+c)});
+      setMsg(msg,"Frota atualizada.");}
+    editando=null;await carregar();
+  }catch(err){setMsg(msg,msgErr(err),true);btn.disabled=false;}
 }
 
 function renderUsuarios(){
@@ -534,6 +566,7 @@ function allowed(){const v=["painel","historico"];if(canReg())v.push("registrar"
 function aba(v){const ok=allowed();if(!ok.includes(v))v="painel";
   ["painel","registrar","historico","cadastros","usuarios"].forEach(x=>$("#v-"+x).hidden=x!==v);
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===v?"true":"false"));
+  if(v!=="cadastros"&&editando){editando=null;renderCadastros();}
   if(v==="usuarios")carregarUsuarios();}
 $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;history.replaceState(null,"","#"+b.dataset.v);aba(b.dataset.v);});
 addEventListener("hashchange",()=>{if(perfil)aba(location.hash.slice(1));});
@@ -656,6 +689,9 @@ document.addEventListener("click",async e=>{
   if(tc){if(!tc.classList.contains("armed")){tc.classList.add("armed");tc.textContent="Confirmar cancelamento?";setTimeout(()=>{if(tc.isConnected){tc.classList.remove("armed");tc.textContent="Cancelar trajeto";}},3500);return;}
     tc.disabled=true;try{await rpc("molh_cancelar_trajeto",{p_token:token,p_id:+tc.dataset.tcan});await carregar();}catch(err){tc.disabled=false;banner(esc(msgErr(err)));}
     return;}
+  const ed=e.target.closest("[data-edit]");if(ed){if(editando){editando=null;renderCadastros();}const[tp,id]=ed.dataset.edit.split(":");abrirEdicao(tp,+id);return;}
+  if(e.target.closest("[data-ecancel]")){editando=null;renderCadastros();return;}
+  const es=e.target.closest("[data-esave]");if(es){await salvarEdicao(es);return;}
   const d=e.target.closest("[data-del]");
   if(d){
     if(!d.classList.contains("armed")){d.classList.add("armed");d._txt=d.textContent;d.textContent="Confirmar?";setTimeout(()=>{if(d.isConnected){d.classList.remove("armed");d.textContent=d._txt;}},3500);return;}
