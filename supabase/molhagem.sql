@@ -302,6 +302,8 @@ begin
   -- operador pode criar; alterar continua só com o administrador
   if not (u.papel = 'admin' or (u.papel = 'operador' and p_id is null)) then raise exception 'SEM_PERMISSAO'; end if;
   if coalesce(trim(p_nome),'') = '' then raise exception 'NOME_VAZIO'; end if;
+  -- só o administrador define o intervalo; o ponto criado por operador nasce com 2 horas
+  if u.papel <> 'admin' then p_intervalo := 120; end if;
   if coalesce(p_intervalo,0) < 15 then raise exception 'INTERVALO_INVALIDO'; end if;
   if p_id is null then
     insert into molh_pontos(nome, trecho, km, intervalo_min)

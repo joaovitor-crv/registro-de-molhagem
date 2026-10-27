@@ -270,7 +270,7 @@ tr:last-child td{border-bottom:0}
           <label class="full">Nome do ponto<input id="pNome" maxlength="80" placeholder="Ex.: Curva da balança"></label>
           <label>Trecho / estrada<input id="pTrecho" maxlength="60" placeholder="Ex.: Estrada do talhão 12"></label>
           <label>Km / referência<input id="pKm" maxlength="30" placeholder="Ex.: km 3,4"></label>
-          <label class="full">Intervalo entre molhagens (minutos)<input id="pInt" type="number" min="15" step="15" value="120"></label>
+          <label class="full" id="pIntBox">Intervalo entre molhagens (minutos)<input id="pInt" type="number" min="15" step="15" value="120"></label>
           <div class="actions full"><button class="btn" type="submit">Adicionar ponto</button><span class="msg" id="pMsg" role="status"></span></div>
         </form>
         <div class="tablebox"><table id="pTable"></table></div>
@@ -496,6 +496,7 @@ function renderHistorico(){
 
 function renderCadastros(){
   if(!canReg())return;const adm=canAdmin();
+  $("#pIntBox").hidden=!adm;
   $("#pTable").innerHTML=`<thead><tr><th>Ponto</th><th>Trecho</th><th class="num">Intervalo</th><th></th></tr></thead><tbody>`+
     (S.pontos.length?S.pontos.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td>${esc([p.trecho,p.km].filter(Boolean).join(" · ")||"—")}</td>
       <td class="num">${adm?`<input type="number" min="15" step="15" value="${Number(p.intervalo_min)||120}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min`:fmtDur(Number(p.intervalo_min)||120)}</td>
