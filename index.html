@@ -554,7 +554,9 @@ function tick(){const n=new Date();$("#clock").textContent=fmtHM(n)+" · "+n.toL
 /* ---------- dados ---------- */
 async function carregar(){
   const r=await rpc("molh_dados",{p_token:token,p_dias:dias});
-  perfil=r.perfil;S.pontos=r.pontos||[];S.frotas=r.frotas||[];S.mol=r.molhagens||[];S.traj=r.trajetos||[];
+  perfil=r.perfil;
+  const abc=(x,y)=>String(x||"").localeCompare(String(y||""),"pt-BR",{numeric:true,sensitivity:"base"});
+  S.pontos=(r.pontos||[]).sort((a,b)=>abc(a.nome,b.nome));S.frotas=(r.frotas||[]).sort((a,b)=>abc(a.prefixo,b.prefixo));S.mol=r.molhagens||[];S.traj=r.trajetos||[];
   renderAll(); banner("");
 }
 async function carregarUsuarios(){if(!canAdmin())return;try{usuarios=await rpc("molh_usuarios_lista",{p_token:token})||[];renderUsuarios();}catch(e){setMsg("#uMsg",msgErr(e),true);}}
