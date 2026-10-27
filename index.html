@@ -216,9 +216,7 @@ tr:last-child td{border-bottom:0}
       <label>Ponto / trecho<select id="mPonto"></select></label>
       <label>Frota (caminhão-pipa)<select id="mFrota"></select></label>
       <label>Data e hora<input id="mQuando" type="datetime-local"></label>
-      <label>Volume aplicado (L)<input id="mVolume" type="number" min="0" step="100" placeholder="ex.: 8000"></label>
       <label>Motorista<input id="mMotorista" type="text" maxlength="80" placeholder="Nome"></label>
-      <label>Condição da via<select id="mCond"><option>Muita poeira</option><option>Poeira moderada</option><option>Pouca poeira</option><option>Já úmida</option></select></label>
       <label class="full">Observação<textarea id="mObs" maxlength="300" placeholder="Ex.: molhado só o lado da descida"></textarea></label>
       <div class="actions full"><button class="btn" type="submit" id="mSave">Salvar molhagem</button><span class="msg" id="mMsg" role="status"></span></div>
     </form>
@@ -365,12 +363,12 @@ function renderPainel(){
     if(a.status==="none"&&b.status!=="none")return -1; if(b.status==="none"&&a.status!=="none")return 1; return b.ratio-a.ratio;});
   const late=infos.filter(i=>i.status==="late"||i.status==="none").length, warn=infos.filter(i=>i.status==="warn").length;
   const d24=S.mol.filter(m=>now-new Date(m.quando)<864e5);
-  const litros=d24.reduce((s,m)=>s+(Number(m.volume_l)||0),0);
+  const emdia=infos.filter(i=>i.status==="ok").length;
   $("#kpis").innerHTML=
     `<div class="kpi ${late?"late":""}"><div class="lbl">Atrasados / sem registro</div><div class="val">${late}<small> de ${S.pontos.length}</small></div></div>`+
     `<div class="kpi ${warn?"warn":""}"><div class="lbl">Molhar em breve</div><div class="val">${warn}</div></div>`+
     `<div class="kpi"><div class="lbl">Molhagens em 24 h</div><div class="val">${d24.length}</div></div>`+
-    `<div class="kpi"><div class="lbl">Água aplicada em 24 h</div><div class="val">${(litros/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})}<small> m³</small></div></div>`;
+    `<div class="kpi"><div class="lbl">Pontos em dia</div><div class="val">${emdia}<small> de ${S.pontos.length}</small></div></div>`;
   const reg=canReg();
   if(!S.pontos.length){$("#cards").innerHTML=`<div class="empty">Nenhum ponto cadastrado ainda.${canAdmin()?" Cadastre os trechos em <b>Frotas e pontos</b> para começar.":" O administrador ainda vai cadastrar os trechos."}</div>`;}
   else $("#cards").innerHTML=infos.map(i=>{
@@ -395,11 +393,11 @@ function renderPainel(){
     </article>`;}).join("");
   renderTimeline(now);
   const rows=S.frotas.map(f=>{const ms=d24.filter(m=>m.frota_id===f.id);
-    const L=ms.reduce((s,m)=>s+(Number(m.volume_l)||0),0); const lp=ms[0]?byId(S.pontos,ms[0].ponto_id):null;
-    return{f,n:ms.length,L,last:ms[0],lp};}).sort((a,b)=>b.n-a.n);
-  $("#fleetTable").innerHTML=`<thead><tr><th>Frota</th><th class="num">Molhagens</th><th class="num">Volume</th><th>Última molhagem</th><th>Onde</th></tr></thead><tbody>`+
-    (rows.length?rows.map(r=>`<tr><td><b>${esc(r.f.prefixo)}</b> <span style="color:var(--muted)">${esc(r.f.descricao||"")}</span></td><td class="num">${r.n}</td><td class="num">${fmtL(r.L)}</td><td class="mono">${r.last?whenLabel(new Date(r.last.quando)):"—"}</td><td>${r.lp?esc(r.lp.nome):"—"}</td></tr>`).join("")
-    :`<tr><td colspan="5" style="color:var(--muted)">Nenhuma frota cadastrada.</td></tr>`)+"</tbody>";
+    const lp=ms[0]?byId(S.pontos,ms[0].ponto_id):null;
+    return{f,n:ms.length,last:ms[0],lp};}).sort((a,b)=>b.n-a.n);
+  $("#fleetTable").innerHTML=`<thead><tr><th>Frota</th><th class="num">Molhagens</th><th>Última molhagem</th><th>Onde</th></tr></thead><tbody>`+
+    (rows.length?rows.map(r=>`<tr><td><b>${esc(r.f.prefixo)}</b> <span style="color:var(--muted)">${esc(r.f.descricao||"")}</span></td><td class="num">${r.n}</td><td class="mono">${r.last?whenLabel(new Date(r.last.quando)):"—"}</td><td>${r.lp?esc(r.lp.nome):"—"}</td></tr>`).join("")
+    :`<tr><td colspan="4" style="color:var(--muted)">Nenhuma frota cadastrada.</td></tr>`)+"</tbody>";
 }
 
 function renderTimeline(now){
@@ -433,12 +431,11 @@ function renderHistorico(){
   const pp=$("#hPonto").value, ff=$("#hFrota").value, d=+$("#hPeriodo").value; const now=Date.now();
   const list=S.mol.filter(m=>(!pp||String(m.ponto_id)===pp)&&(!ff||String(m.frota_id)===ff)&&(now-new Date(m.quando)<d*864e5)).slice(0,1000);
   const gap=m=>{const idx=S.mol.indexOf(m);const prev=S.mol.slice(idx+1).find(x=>x.ponto_id===m.ponto_id);return prev?(new Date(m.quando)-new Date(prev.quando))/6e4:null;};
-  const L=list.reduce((s,m)=>s+(Number(m.volume_l)||0),0);
-  $("#hCount").textContent=`${list.length} registro${list.length===1?"":"s"} · ${fmtL(L)}`;
-  $("#hTable").innerHTML=`<thead><tr><th>Data e hora</th><th>Ponto</th><th>Frota</th><th class="num">Volume</th><th class="num">Desde a anterior</th><th>Motorista</th><th>Condição</th><th>Observação</th><th>Lançado por</th><th></th></tr></thead><tbody>`+
+  $("#hCount").textContent=`${list.length} registro${list.length===1?"":"s"}`;
+  $("#hTable").innerHTML=`<thead><tr><th>Data e hora</th><th>Ponto</th><th>Frota</th><th class="num">Desde a anterior</th><th>Motorista</th><th>Observação</th><th>Lançado por</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(m=>{const p=byId(S.pontos,m.ponto_id),f=byId(S.frotas,m.frota_id);const g=gap(m);
-      return `<tr><td class="mono">${fmtDH(new Date(m.quando))}</td><td>${esc(p?p.nome:"(removido)")}</td><td>${esc(f?f.prefixo:"(removida)")}</td><td class="num">${fmtL(m.volume_l)}</td><td class="num">${g==null?"—":fmtDur(g)}</td><td>${esc(m.motorista||"—")}</td><td>${esc(m.condicao||"—")}</td><td style="white-space:normal;min-width:160px">${esc(m.obs||"")}</td><td>${esc(m.lancado_por||"—")}</td><td>${canDelMol(m)?`<button class="btn danger small" data-del="mol:${m.id}">Excluir</button>`:""}</td></tr>`;}).join("")
-    :`<tr><td colspan="10" style="color:var(--muted)">Nenhuma molhagem no filtro escolhido.</td></tr>`)+"</tbody>";
+      return `<tr><td class="mono">${fmtDH(new Date(m.quando))}</td><td>${esc(p?p.nome:"(removido)")}</td><td>${esc(f?f.prefixo:"(removida)")}</td><td class="num">${g==null?"—":fmtDur(g)}</td><td>${esc(m.motorista||"—")}</td><td style="white-space:normal;min-width:160px">${esc(m.obs||"")}</td><td>${esc(m.lancado_por||"—")}</td><td>${canDelMol(m)?`<button class="btn danger small" data-del="mol:${m.id}">Excluir</button>`:""}</td></tr>`;}).join("")
+    :`<tr><td colspan="8" style="color:var(--muted)">Nenhuma molhagem no filtro escolhido.</td></tr>`)+"</tbody>";
 }
 
 function renderCadastros(){
@@ -531,9 +528,9 @@ $("#fMol").addEventListener("submit",async e=>{e.preventDefault();
   const ponto=$("#mPonto").value,frota=$("#mFrota").value,q=$("#mQuando").value;
   if(!ponto||!frota){setMsg("#mMsg","Escolha o ponto e a frota. Se a lista estiver vazia, peça ao administrador para cadastrá-los.",true);return;}
   if(!q){setMsg("#mMsg","Informe a data e a hora da molhagem.",true);return;}
-  const quando=new Date(q);const v=$("#mVolume").value;
+  const quando=new Date(q);
   $("#mSave").disabled=true;
-  try{await rpc("molh_registrar",{p_token:token,p_ponto:+ponto,p_frota:+frota,p_quando:quando.toISOString(),p_volume:v===""?null:Math.round(+v),p_motorista:$("#mMotorista").value,p_condicao:$("#mCond").value,p_obs:$("#mObs").value});
+  try{await rpc("molh_registrar",{p_token:token,p_ponto:+ponto,p_frota:+frota,p_quando:quando.toISOString(),p_volume:null,p_motorista:$("#mMotorista").value,p_condicao:"",p_obs:$("#mObs").value});
     const p=byId(S.pontos,ponto);setMsg("#mMsg",`Molhagem salva: ${p?p.nome:""} às ${fmtHM(quando)}.`);$("#mObs").value="";$("#mQuando").value=toLocalInput(new Date());await carregar();}
   catch(err){setMsg("#mMsg",msgErr(err),true);}
   $("#mSave").disabled=false;
