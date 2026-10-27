@@ -84,6 +84,12 @@ h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.03e
 .trip .meta b{color:var(--fg);font-variant-numeric:tabular-nums}
 .trip .chg{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
 .trip .chg label{flex:1 1 180px}
+.alertas{display:flex;flex-direction:column;gap:8px}
+.alerta{border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:4px;font-size:14px;border:1px solid}
+.alerta.warn{background:var(--warn-soft);border-color:var(--warn);color:var(--fg)}
+.alerta.late{background:var(--late-soft);border-color:var(--late);color:var(--fg)}
+.alerta b.t{font-family:var(--display);font-size:18px;letter-spacing:.03em;text-transform:uppercase}
+.alerta.warn b.t{color:var(--warn)} .alerta.late b.t{color:var(--late)}
 .otw{font-size:13px;color:var(--water);font-weight:500}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .card-top{display:flex;gap:10px;align-items:flex-start}
@@ -208,13 +214,14 @@ tr:last-child td{border-bottom:0}
   <div id="vApp" hidden style="display:contents">
   <!-- PAINEL -->
   <section id="v-painel" class="sec" style="gap:24px">
+    <div class="alertas" id="alerta" hidden></div>
     <div class="kpis" id="kpis"></div>
     <div class="sec" id="secTraj">
       <div class="sec-head"><h2>Frotas em trajeto</h2><span class="note">Saíram para molhar e ainda não chegaram ao ponto.</span><button class="btn small ghost" type="button" id="bNovaSaida" hidden style="margin-left:auto">Registrar saída</button></div>
       <div class="grid" id="trips"></div>
     </div>
     <div class="sec">
-      <div class="sec-head"><h2>Pontos de molhagem</h2><span class="note">Ordenados pelo mais urgente. Previsão = última molhagem + intervalo do ponto.</span></div>
+      <div class="sec-head"><h2>Pontos de molhagem</h2><span class="note">Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. O aviso começa 40 min antes de vencer.</span></div>
       <div class="grid" id="cards"></div>
     </div>
     <div class="sec">
@@ -380,9 +387,10 @@ function pointInfo(p,now){
   if(list.length>=3){const ts=list.slice(0,11).map(m=>+new Date(m.quando));let s=0;for(let i=0;i<ts.length-1;i++)s+=ts[i]-ts[i+1];avg=s/(ts.length-1)/6e4;}
   if(!last)return{p,last:null,interval,avg,status:"none",ratio:0};
   const lt=new Date(last.quando); const el=(now-lt)/6e4; const next=new Date(+lt+interval*6e4);
-  const ratio=el/interval; const status=ratio>=1?"late":ratio>=.75?"warn":"ok";
+  const ratio=el/interval; const falta=interval-el; const status=falta<=0?"late":falta<=AVISO_MIN?"warn":"ok";
   return{p,last,lt,el,next,interval,avg,ratio,status};
 }
+const AVISO_MIN=40; // minutos antes do vencimento em que o ponto passa para "Molhar em breve"
 const ST={ok:"Em dia",warn:"Molhar em breve",late:"Atrasado",none:"Sem registro"};
 
 /* ---------- render ---------- */
@@ -391,6 +399,11 @@ function renderPainel(){
   const infos=S.pontos.map(p=>pointInfo(p,now)).sort((a,b)=>{
     if(a.status==="none"&&b.status!=="none")return -1; if(b.status==="none"&&a.status!=="none")return 1; return b.ratio-a.ratio;});
   const late=infos.filter(i=>i.status==="late"||i.status==="none").length, warn=infos.filter(i=>i.status==="warn").length;
+  { const atr=infos.filter(i=>i.status==="late"), br=infos.filter(i=>i.status==="warn").sort((a,b)=>a.next-b.next);
+    const al=$("#alerta"); const linhas=[];
+    if(atr.length)linhas.push(`<div class="alerta late"><b class="t">${atr.length===1?"1 ponto atrasado":atr.length+" pontos atrasados"}</b><span>${atr.map(i=>`${esc(i.p.nome)} (atrasado ${fmtDur((now-i.next)/6e4)})`).join(" · ")}</span></div>`);
+    if(br.length)linhas.push(`<div class="alerta warn"><b class="t">Molhar nos próximos ${AVISO_MIN} min</b><span>${br.map(i=>`${esc(i.p.nome)} (vence ${fmtHM(i.next)}, em ${fmtDur((i.next-now)/6e4)})`).join(" · ")}</span></div>`);
+    al.innerHTML=linhas.join(""); al.hidden=!linhas.length; }
   const d24=S.mol.filter(m=>now-new Date(m.quando)<864e5);
   const ativos=S.traj.filter(t=>t.status==="em_trajeto");
   $("#kpis").innerHTML=
