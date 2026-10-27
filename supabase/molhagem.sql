@@ -90,7 +90,7 @@ $$;
 
 -- ---------- Regras de senha (uso interno) ----------
 -- Mínimo 4 caracteres; letras e números bastam. Bloqueia senhas óbvias
--- (1234, 4321, 1111, abcd, senha...) e senhas com o nome ou o login da pessoa.
+-- (1234, 4321, 1111, abcd, senha...). O nome da pessoa pode ser usado como senha.
 create or replace function molh__checar_senha(p_senha text, p_usuario text, p_nome text)
 returns void language plpgsql immutable as $$
 declare
@@ -117,12 +117,6 @@ begin
   if s in ('senha','senha1','senha12','senha123','password','qwerty','qwer','asdf','abc123','admin','admin1','admin123',
            'molhagem','pipa','teste','teste1','teste123','mudar','mudar123','1q2w3e','1q2w3e4r','102030','112233','121212','123123')
     then raise exception 'SENHA_FRACA'; end if;
-  -- não pode usar o login nem o nome da pessoa
-  if length(login) >= 3 and position(regexp_replace(login,'[^a-z0-9]','','g') in regexp_replace(s,'[^a-z0-9]','','g')) > 0
-    then raise exception 'SENHA_COM_NOME'; end if;
-  foreach parte in array regexp_split_to_array(nome, '[^a-z]+') loop
-    if length(parte) >= 3 and position(parte in s) > 0 then raise exception 'SENHA_COM_NOME'; end if;
-  end loop;
 end $$;
 
 -- ---------- Login / senha ----------
