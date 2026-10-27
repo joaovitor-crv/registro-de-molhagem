@@ -33,7 +33,7 @@ create table if not exists molh_pontos (
   nome          text not null,
   trecho        text not null default '',
   km            text not null default '',
-  intervalo_min integer not null default 120 check (intervalo_min >= 15),
+  intervalo_min integer not null default 360 check (intervalo_min >= 15),
   ativo         boolean not null default true,
   criado_em     timestamptz not null default now()
 );
@@ -79,6 +79,7 @@ create table if not exists molh_trajetos (
 );
 create unique index if not exists molh_trajetos_frota_ativa on molh_trajetos (frota_id) where status = 'em_trajeto';
 create index if not exists molh_trajetos_saida_idx on molh_trajetos (saida desc);
+alter table molh_pontos alter column intervalo_min set default 360;
 alter table molh_molhagens add column if not exists trajeto_id bigint references molh_trajetos(id);
 
 -- Ninguém acessa as tabelas direto pela internet: só pelas funções abaixo.
@@ -302,8 +303,8 @@ begin
   -- operador pode criar; alterar continua só com o administrador
   if not (u.papel = 'admin' or (u.papel = 'operador' and p_id is null)) then raise exception 'SEM_PERMISSAO'; end if;
   if coalesce(trim(p_nome),'') = '' then raise exception 'NOME_VAZIO'; end if;
-  -- só o administrador define o intervalo; o ponto criado por operador nasce com 2 horas
-  if u.papel <> 'admin' then p_intervalo := 120; end if;
+  -- só o administrador define o intervalo; o ponto criado por operador nasce com 6 horas
+  if u.papel <> 'admin' then p_intervalo := 360; end if;
   if coalesce(p_intervalo,0) < 15 then raise exception 'INTERVALO_INVALIDO'; end if;
   if p_id is null then
     insert into molh_pontos(nome, trecho, km, intervalo_min)

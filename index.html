@@ -270,7 +270,7 @@ tr:last-child td{border-bottom:0}
           <label class="full">Nome do ponto<input id="pNome" maxlength="80" placeholder="Ex.: Curva da balança"></label>
           <label>Trecho / estrada<input id="pTrecho" maxlength="60" placeholder="Ex.: Estrada do talhão 12"></label>
           <label>Km / referência<input id="pKm" maxlength="30" placeholder="Ex.: km 3,4"></label>
-          <label class="full" id="pIntBox">Intervalo entre molhagens (minutos)<input id="pInt" type="number" min="15" step="15" value="120"></label>
+          <label class="full" id="pIntBox">Intervalo entre molhagens (minutos)<input id="pInt" type="number" min="15" step="15" value="360"></label>
           <div class="actions full"><button class="btn" type="submit">Adicionar ponto</button><span class="msg" id="pMsg" role="status"></span></div>
         </form>
         <div class="tablebox"><table id="pTable"></table></div>
@@ -377,7 +377,7 @@ function banner(t){const b=$("#banner");b.innerHTML=t;b.hidden=!t;}
 /* ---------- cálculo por ponto ---------- */
 function pointInfo(p,now){
   const list=S.mol.filter(m=>m.ponto_id===p.id);
-  const last=list[0]; const interval=Number(p.intervalo_min)||120;
+  const last=list[0]; const interval=Number(p.intervalo_min)||360;
   let avg=null;
   if(list.length>=3){const ts=list.slice(0,11).map(m=>+new Date(m.quando));let s=0;for(let i=0;i<ts.length-1;i++)s+=ts[i]-ts[i+1];avg=s/(ts.length-1)/6e4;}
   if(!last)return{p,last:null,interval,avg,status:"none",ratio:0};
@@ -499,7 +499,7 @@ function renderCadastros(){
   $("#pIntBox").hidden=!adm;
   $("#pTable").innerHTML=`<thead><tr><th>Ponto</th><th>Trecho</th><th class="num">Intervalo</th><th></th></tr></thead><tbody>`+
     (S.pontos.length?S.pontos.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td>${esc([p.trecho,p.km].filter(Boolean).join(" · ")||"—")}</td>
-      <td class="num">${adm?`<input type="number" min="15" step="15" value="${Number(p.intervalo_min)||120}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min`:fmtDur(Number(p.intervalo_min)||120)}</td>
+      <td class="num">${adm?`<input type="number" min="15" step="15" value="${Number(p.intervalo_min)||360}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min`:fmtDur(Number(p.intervalo_min)||360)}</td>
       <td>${adm?`<button class="btn danger small" data-del="ponto:${p.id}">Remover</button>`:""}</td></tr>`).join("")
     :`<tr><td colspan="4" style="color:var(--muted)">Nenhum ponto cadastrado.</td></tr>`)+"</tbody>";
   $("#fTable").innerHTML=`<thead><tr><th>Frota</th><th>Descrição</th><th class="num">Tanque</th><th></th></tr></thead><tbody>`+
@@ -671,7 +671,7 @@ const intTimer={};
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.dataset&&t.dataset.int&&canAdmin()){const p=byId(S.pontos,t.dataset.int),v=Math.round(+t.value);
-    if(!p||!(v>=15)){t.value=p?p.intervalo_min:120;return;}
+    if(!p||!(v>=15)){t.value=p?p.intervalo_min:360;return;}
     clearTimeout(intTimer[p.id]);intTimer[p.id]=setTimeout(()=>rpc("molh_salvar_ponto",{p_token:token,p_id:p.id,p_nome:p.nome,p_trecho:p.trecho,p_km:p.km,p_intervalo:v}).then(carregar).catch(err=>banner(esc(msgErr(err)))),400);}
   if(t.id==="hPeriodo"){const d=+t.value;if(d>dias){dias=d;carregar().catch(()=>{});}else renderHistorico();}
   if(t.id==="hPonto"||t.id==="hFrota")renderHistorico();
