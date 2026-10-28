@@ -226,7 +226,7 @@ tr:last-child td{border-bottom:0}
       <div class="grid" id="trips"></div>
     </div>
     <div class="sec">
-      <div class="sec-head"><h2>Pontos de molhagem</h2><span class="note">Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido.</span></div>
+      <div class="sec-head"><h2>Pontos de molhagem</h2><span class="note">Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido.</span><button class="btn small ghost" type="button" id="bPdf" style="margin-left:auto">Exportar PDF</button></div>
       <div class="grid" id="cards"></div>
     </div>
     <div class="sec">
@@ -450,6 +450,90 @@ function renderPainel(){
   $("#fleetTable").innerHTML=`<thead><tr><th>Frota</th><th class="num">Molhagens</th><th>Última molhagem</th><th>Onde</th></tr></thead><tbody>`+
     (rows.length?rows.map(r=>`<tr><td><b>${esc(r.f.prefixo)}</b> <span style="color:var(--muted)">${esc(r.f.descricao||"")}</span></td><td class="num">${r.n}</td><td class="mono">${r.last?whenLabel(new Date(r.last.quando)):"—"}</td><td>${r.lp?esc(r.lp.nome):"—"}</td></tr>`).join("")
     :`<tr><td colspan="4" style="color:var(--muted)">Nenhuma frota cadastrada.</td></tr>`)+"</tbody>";
+}
+
+/* ---------- relatório em PDF ---------- */
+function loadScript(src){return new Promise((ok,fail)=>{if(document.querySelector(`script[src="${src}"]`))return ok();
+  const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=()=>fail(new Error("REDE"));document.head.appendChild(s);});}
+async function exportarPdf(){
+  const b=$("#bPdf");const txt=b.textContent;b.disabled=true;b.textContent="Gerando PDF…";
+  try{
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+    const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+    const now=new Date(); const PW=doc.internal.pageSize.getWidth(), M=12;
+    const dataHora=pad(now.getDate())+"/"+pad(now.getMonth()+1)+"/"+now.getFullYear()+" "+fmtHM(now);
+    const infos=S.pontos.map(p=>pointInfo(p,now)).sort((a,b)=>{
+      if(a.status==="none"&&b.status!=="none")return -1;if(b.status==="none"&&a.status!=="none")return 1;
+      if(a.next&&b.next)return a.next-b.next;return 0;});
+    const ativos=S.traj.filter(t=>t.status==="em_trajeto");
+    const d24=S.mol.filter(m=>now-new Date(m.quando)<864e5);
+    const nLate=infos.filter(i=>i.status==="late"||i.status==="none").length, nWarn=infos.filter(i=>i.status==="warn").length;
+    const nOk=infos.filter(i=>i.status==="ok").length;
+    const COR={ok:[30,132,73],warn:[183,121,0],late:[192,41,41],none:[192,41,41]};
+    const head={fillColor:[22,38,61],textColor:255,fontStyle:"bold"};
+
+    doc.setFillColor(22,38,61);doc.rect(0,0,PW,20,"F");
+    doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(16);doc.text("Controle de Poeira - Relatório de molhagem",M,13);
+    doc.setFont("helvetica","normal");doc.setFontSize(9);
+    doc.text("Gerado em "+dataHora+(perfil&&perfil.nome?" por "+perfil.nome:""),PW-M,13,{align:"right"});
+    doc.setTextColor(30);
+
+    // resumo
+    const kp=[["Pontos cadastrados",S.pontos.length],["Atrasados / sem registro",nLate],["Molhar na próxima hora",nWarn],["Em dia",nOk],["Frotas em trajeto",ativos.length],["Molhagens em 24 h",d24.length]];
+    const bw=(PW-2*M-5*4)/6; kp.forEach(([l,v],k)=>{const x=M+k*(bw+4);
+      doc.setDrawColor(210);doc.roundedRect(x,25,bw,16,2,2,"S");
+      doc.setFontSize(8);doc.setTextColor(110);doc.text(l,x+3,30);
+      doc.setFontSize(14);doc.setFont("helvetica","bold");
+      doc.setTextColor(...(k===1&&v?COR.late:k===2&&v?COR.warn:[30,30,30]));doc.text(String(v),x+3,38);
+      doc.setFont("helvetica","normal");doc.setTextColor(30);});
+
+    // pontos
+    doc.setFontSize(12);doc.setFont("helvetica","bold");doc.text("Pontos de molhagem - ordem de urgência",M,50);
+    doc.autoTable({startY:53,margin:{left:M,right:M},headStyles:head,styles:{fontSize:8.5,cellPadding:2},
+      head:[["Ponto","Trecho / km","Situação","Última molhagem","Frota","Próxima prevista","Tempo restante","Intervalo"]],
+      body:infos.map(i=>{const p=i.p,fr=i.last?byId(S.frotas,i.last.frota_id):null;
+        let rest="Molhar assim que possível";
+        if(i.last){const left=(i.next-now)/6e4;rest=left>=0?"em "+fmtDur(left):"atrasado "+fmtDur(-left);}
+        return[p.nome,[p.trecho,p.km].filter(Boolean).join(" · ")||"-",ST[i.status],
+          i.last?fmtDH(i.lt):"-",i.last?(fr?fr.prefixo:"removida"):"-",i.last?fmtDH(i.next):"-",rest,fmtDur(i.interval)];}),
+      didParseCell:d=>{if(d.section==="body"&&(d.column.index===2||d.column.index===6)){const st=infos[d.row.index].status;
+        d.cell.styles.textColor=COR[st];d.cell.styles.fontStyle="bold";}}});
+
+    // trajetos
+    let y=doc.lastAutoTable.finalY+8; if(y>175){doc.addPage();y=16;}
+    doc.setFontSize(12);doc.setFont("helvetica","bold");doc.setTextColor(30);doc.text("Frotas em trajeto",M,y);
+    doc.autoTable({startY:y+3,margin:{left:M,right:M},headStyles:head,styles:{fontSize:8.5,cellPadding:2},
+      head:[["Frota","Saiu de","Destino","Saída","Há quanto tempo","Motorista"]],
+      body:ativos.length?ativos.map(t=>{const f=byId(S.frotas,t.frota_id),d=byId(S.pontos,t.destino_id),s=new Date(t.saida);
+        return[f?f.prefixo:"removida",t.origem||"-",d?d.nome:"removido",fmtDH(s),fmtDur((now-s)/6e4),t.motorista||"-"];})
+        :[[{content:"Nenhuma frota em trajeto no momento.",colSpan:6,styles:{textColor:120}}]]});
+
+    // frotas 24h
+    y=doc.lastAutoTable.finalY+8; if(y>175){doc.addPage();y=16;}
+    doc.setFontSize(12);doc.setFont("helvetica","bold");doc.text("Atividade das frotas - últimas 24 horas",M,y);
+    const rows=S.frotas.map(f=>{const ms=d24.filter(m=>m.frota_id===f.id);const lp=ms[0]?byId(S.pontos,ms[0].ponto_id):null;
+      return[f.prefixo+(f.descricao?" - "+f.descricao:""),ms.length,ms[0]?fmtDH(new Date(ms[0].quando)):"-",lp?lp.nome:"-"];}).sort((a,b)=>b[1]-a[1]);
+    doc.autoTable({startY:y+3,margin:{left:M,right:M},headStyles:head,styles:{fontSize:8.5,cellPadding:2},
+      head:[["Frota","Molhagens","Última molhagem","Onde"]],columnStyles:{1:{halign:"right"}},
+      body:rows.length?rows:[[{content:"Nenhuma frota cadastrada.",colSpan:4,styles:{textColor:120}}]]});
+
+    // molhagens 24h
+    y=doc.lastAutoTable.finalY+8; if(y>175){doc.addPage();y=16;}
+    doc.setFontSize(12);doc.setFont("helvetica","bold");doc.text("Molhagens registradas - últimas 24 horas",M,y);
+    doc.autoTable({startY:y+3,margin:{left:M,right:M},headStyles:head,styles:{fontSize:8.5,cellPadding:2},
+      head:[["Data e hora","Ponto","Frota","Motorista","Observação"]],
+      body:d24.length?d24.map(m=>{const p=byId(S.pontos,m.ponto_id),f=byId(S.frotas,m.frota_id);
+        return[fmtDH(new Date(m.quando)),p?p.nome:"removido",f?f.prefixo:"removida",m.motorista||"-",m.obs||""];})
+        :[[{content:"Nenhuma molhagem nas últimas 24 horas.",colSpan:5,styles:{textColor:120}}]]});
+
+    const n=doc.getNumberOfPages();
+    for(let k=1;k<=n;k++){doc.setPage(k);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.setTextColor(120);
+      doc.text("Controle de Poeira · "+dataHora,M,doc.internal.pageSize.getHeight()-6);
+      doc.text("Página "+k+" de "+n,PW-M,doc.internal.pageSize.getHeight()-6,{align:"right"});}
+    doc.save("controle-de-poeira_"+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+"_"+pad(now.getHours())+pad(now.getMinutes())+".pdf");
+  }catch(e){banner("Não foi possível gerar o PDF. "+esc(msgErr(e)));}
+  finally{b.disabled=false;b.textContent=txt;}
 }
 
 let chegando=null,chegVal="";
@@ -699,6 +783,7 @@ document.addEventListener("click",async e=>{
       setMsg("#uMsg",senha?`Senha de ${u.usuario} redefinida. A pessoa troca no próximo acesso.`:`Usuário ${u.usuario} atualizado.`);await carregarUsuarios();}
     catch(err){setMsg("#uMsg",msgErr(err),true);us.disabled=false;}
     return;}
+  if(e.target.closest("#bPdf")){exportarPdf();return;}
   if(e.target.closest("#bNovaSaida")){$("#tSaida").value=toLocalInput(new Date());history.replaceState(null,"","#registrar");aba("registrar");$("#tFrota").focus();return;}
   const ta=e.target.closest("[data-tarr]");if(ta){chegando=+ta.dataset.tarr;chegVal="";renderPainel();return;}
   if(e.target.closest("[data-tback]")){chegando=null;renderPainel();return;}
