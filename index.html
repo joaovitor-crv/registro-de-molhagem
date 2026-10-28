@@ -405,7 +405,7 @@ const ST={ok:"Em dia",warn:"Molhar em breve",late:"Atrasado",none:"Sem registro"
 function renderPainel(){
   const now=new Date();
   const infos=S.pontos.map(p=>pointInfo(p,now)).sort((a,b)=>{
-    if(a.status==="none"&&b.status!=="none")return -1; if(b.status==="none"&&a.status!=="none")return 1; return b.ratio-a.ratio;});
+    if(a.status==="none"&&b.status!=="none")return 1; if(b.status==="none"&&a.status!=="none")return -1; return b.ratio-a.ratio;});
   const late=infos.filter(i=>i.status==="late"||i.status==="none").length, warn=infos.filter(i=>i.status==="warn").length;
   { const atr=infos.filter(i=>i.status==="late"), br=infos.filter(i=>i.status==="warn").sort((a,b)=>a.next-b.next);
     const al=$("#alerta"); const linhas=[];
@@ -465,7 +465,7 @@ async function exportarPdf(){
     const now=new Date(); const PW=doc.internal.pageSize.getWidth(), M=12;
     const dataHora=pad(now.getDate())+"/"+pad(now.getMonth()+1)+"/"+now.getFullYear()+" "+fmtHM(now);
     const infos=S.pontos.map(p=>pointInfo(p,now)).sort((a,b)=>{
-      if(a.status==="none"&&b.status!=="none")return -1;if(b.status==="none"&&a.status!=="none")return 1;
+      if(a.status==="none"&&b.status!=="none")return 1;if(b.status==="none"&&a.status!=="none")return -1;
       if(a.next&&b.next)return a.next-b.next;return 0;});
     const ativos=S.traj.filter(t=>t.status==="em_trajeto");
     const d24=S.mol.filter(m=>now-new Date(m.quando)<864e5);
