@@ -474,7 +474,7 @@ async function exportarPdf(){
     const head={fillColor:[22,38,61],textColor:255,fontStyle:"bold"};
 
     doc.setFillColor(22,38,61);doc.rect(0,0,PW,20,"F");
-    doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(16);doc.text("Controle de Poeira - Relatório de molhagem",M,13);
+    doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(16);doc.text("Controle de Poeira",M,13);
     doc.setFont("helvetica","normal");doc.setFontSize(9);
     doc.text("Gerado em "+dataHora+(perfil&&perfil.nome?" por "+perfil.nome:""),PW-M,13,{align:"right"});
     doc.setTextColor(30);
@@ -489,7 +489,7 @@ async function exportarPdf(){
       doc.setFont("helvetica","normal");doc.setTextColor(30);});
 
     // pontos
-    doc.setFontSize(12);doc.setFont("helvetica","bold");doc.text("Pontos de molhagem - ordem de urgência",M,50);
+    doc.setFontSize(12);doc.setFont("helvetica","bold");doc.text("Pontos - ordem de urgência",M,50);
     doc.autoTable({startY:53,margin:{left:M,right:M},headStyles:head,styles:{fontSize:8.5,cellPadding:2},
       head:[["Ponto","Trecho / km","Situação","Última molhagem","Frota","Próxima prevista","Tempo restante","Intervalo"]],
       body:infos.map(i=>{const p=i.p,fr=i.last?byId(S.frotas,i.last.frota_id):null;
@@ -520,7 +520,7 @@ async function exportarPdf(){
 
     // molhagens 24h
     y=doc.lastAutoTable.finalY+8; if(y>175){doc.addPage();y=16;}
-    doc.setFontSize(12);doc.setFont("helvetica","bold");doc.text("Molhagens registradas - últimas 24 horas",M,y);
+    doc.setFontSize(12);doc.setFont("helvetica","bold");doc.text("Registrado nas últimas 24 horas",M,y);
     doc.autoTable({startY:y+3,margin:{left:M,right:M},headStyles:head,styles:{fontSize:8.5,cellPadding:2},
       head:[["Data e hora","Ponto","Frota","Motorista","Observação"]],
       body:d24.length?d24.map(m=>{const p=byId(S.pontos,m.ponto_id),f=byId(S.frotas,m.frota_id);
