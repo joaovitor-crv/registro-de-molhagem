@@ -567,11 +567,9 @@ async function exportarPainelPdf(){
       doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text("Controle de Poeira",M,10.5);
       doc.setFont("helvetica","normal");doc.setFontSize(8);
       doc.text("Gerado em "+dataHora+(perfil&&perfil.nome?" por "+perfil.nome:""),PW-M,10.5,{align:"right"});
-      if(!primeira)return 21;
-      doc.setTextColor(...INK);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text("PONTOS DE MOLHAGEM",M,24);
-      doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...MUTED);
-      doc.text(doc.splitTextToSize("Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido.",PW-2*M),M,28.5);
-      return 33;};
+      return 21;};
+    const secao=(y,titulo,nota)=>{doc.setTextColor(...INK);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(titulo,M,y+3);
+      doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...MUTED);doc.text(doc.splitTextToSize(nota,PW-2*M),M,y+7.5);return y+12;};
     const altura=i=>{const p=i.p,w=cw-2*P,LW=cw-2*P-LXo;doc.setFont("helvetica","bold");doc.setFontSize(8.5);
       let h=6.5+Math.min(2,doc.splitTextToSize(p.nome.toUpperCase(),w).length)*3.6+0.6+4.2;
       if(S.traj.some(t=>t.status==="em_trajeto"&&t.destino_id===p.id))h+=3.4;
@@ -581,6 +579,35 @@ async function exportarPainelPdf(){
       return h+0.8;};
     const alt=infos.map(altura);
     let y0=cab(true),k=0;
+    // frotas em deslocamento
+    y0=secao(y0,"FROTAS EM DESLOCAMENTO ("+ativos.length+")","Frotas que saíram para molhar e ainda não tiveram a chegada confirmada.");
+    if(!ativos.length){doc.setFillColor(244,247,251);doc.setDrawColor(214,222,232);doc.setLineWidth(0.3);doc.roundedRect(M,y0,PW-2*M,9,2,2,"FD");
+      doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(...MUTED);doc.text("Nenhuma frota em deslocamento agora.",M+P,y0+5.8);y0+=9+6;}
+    else{
+      const TBG=[238,245,253],TBD=[150,190,236],TSOFT=[219,233,250];
+      const trips=ativos.map(t=>{const f=byId(S.frotas,t.frota_id),d=byId(S.pontos,t.destino_id),sd=new Date(t.saida);
+        return{nome:f?f.prefixo+(f.descricao?" - "+f.descricao:""):"Frota removida",
+          fatos:[["Saiu de",t.origem||"-"],["Destino",d?d.nome:"Ponto removido"],["Saída",whenLabel(sd)+" · há "+fmtDur((now-sd)/6e4)]].concat(t.motorista?[["Motorista",t.motorista]]:[])};});
+      const LWt=cw-2*P-LXo;
+      const altT=trips.map(t=>{doc.setFont("helvetica","normal");doc.setFontSize(6.5);
+        return 6.5+4.6+t.fatos.reduce((h,[,v])=>h+(doc.splitTextToSize(v,LWt).length>1?6.6:3.8),0)+0.8;});
+      trips.forEach((t,j)=>{const col=j%cols;if(col===0&&j>0)y0+=Math.max(...altT.slice(j-cols,j))+gap;
+        const ch=Math.max(...altT.slice(j-col,j-col+cols));
+        if(y0+ch>PH-11){doc.addPage();y0=cab(false);}
+        const x=M+col*(cw+gap);let yy=y0+6.5;
+        doc.setFillColor(...TBG);doc.setDrawColor(...TBD);doc.setLineWidth(0.3);doc.roundedRect(x,y0,cw,ch,2,2,"FD");
+        doc.setFontSize(5.5);doc.setFont("helvetica","bold");const pill="EM TRAJETO",pw=doc.getTextWidth(pill)+4;
+        doc.setFillColor(...TSOFT);doc.roundedRect(x+cw-P-pw,yy-3.2,pw,4.2,2.1,2.1,"F");doc.setTextColor(...BLUE);doc.text(pill,x+cw-P-pw/2,yy,{align:"center"});
+        doc.setFontSize(9);doc.setTextColor(...INK);doc.text(doc.splitTextToSize(t.nome,cw-2*P-pw-2)[0],x+P,yy);
+        yy+=4.6;const LX=x+P+LXo;
+        t.fatos.forEach(([l,v])=>{doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(...MUTED);doc.text(l,x+P,yy);
+          doc.setTextColor(...INK);const ls=doc.splitTextToSize(v,LWt).slice(0,2);ls.forEach((ln,n)=>doc.text(ln,LX,yy+n*3));yy+=ls.length>1?6.6:3.8;});
+      });
+      y0+=Math.max(...altT.slice(Math.floor((trips.length-1)/cols)*cols))+6;
+    }
+    // pontos
+    if(y0+40>PH-11){doc.addPage();y0=cab(false);}
+    y0=secao(y0,"PONTOS DE MOLHAGEM","Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido.");
     if(!infos.length){doc.setFontSize(10);doc.setTextColor(...MUTED);doc.text("Nenhum ponto cadastrado.",M,y0+8);}
     infos.forEach(i=>{
       const col=k%cols,ch=Math.max(...alt.slice(k-col,k-col+cols)); if(col===0&&k>0)y0+=Math.max(...alt.slice(k-cols,k))+gap;
