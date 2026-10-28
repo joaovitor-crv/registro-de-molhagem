@@ -63,6 +63,7 @@ create index if not exists molh_molhagens_quando_idx on molh_molhagens (quando d
 create index if not exists molh_molhagens_ponto_idx  on molh_molhagens (ponto_id, quando desc);
 
 -- Frotas em trajeto: saída de um local (ex.: Base) até um ponto de molhagem
+alter table molh_pontos add column if not exists pausado boolean not null default false;
 alter table molh_usuarios add column if not exists excluido boolean not null default false;
 
 create table if not exists molh_trajetos (
@@ -429,6 +430,18 @@ begin
   end if;
 end $$;
 
+create or replace function molh_pausar_ponto(p_token text, p_id bigint, p_pausar boolean)
+returns void language plpgsql security definer
+set search_path = public as $$
+declare u molh_usuarios;
+begin
+  u := molh__sessao(p_token);
+  if u.papel not in ('admin','operador') then raise exception 'SEM_PERMISSAO'; end if;
+  update molh_pontos set pausado = coalesce(p_pausar, true) where id = p_id and ativo;
+  if not found then raise exception 'NAO_ENCONTRADO'; end if;
+end $$;
+
+
 -- ---------- Permissões das funções ----------
 revoke execute on function molh__sessao(text) from public, anon, authenticated;
 revoke execute on function molh__perfil(molh_usuarios) from public, anon, authenticated;
@@ -440,7 +453,7 @@ grant execute on function
   molh_salvar_frota(text,bigint,text,text,integer), molh_remover_frota(text,bigint),
   molh_usuarios_lista(text), molh_salvar_usuario(text,bigint,text,text,text,text,boolean),
   molh_iniciar_trajeto(text,bigint,bigint,text,timestamptz,text,text), molh_concluir_trajeto(text,bigint,timestamptz,text),
-  molh_cancelar_trajeto(text,bigint), molh_excluir_usuario(text,bigint)
+  molh_cancelar_trajeto(text,bigint), molh_excluir_usuario(text,bigint), molh_pausar_ponto(text,bigint,boolean)
 to anon;
 
 -- ---------- >>> ADMINISTRADOR <<< ----------

@@ -385,6 +385,7 @@ function whenLabel(d){const t=new Date();t.setHours(0,0,0,0);
   const pre=diff===0?"hoje":diff===-1?"ontem":diff===1?"amanhã":pad(d.getDate())+"/"+pad(d.getMonth()+1);
   return pre+" às "+fmtHM(d);}
 const fmtL=n=>n==null||n===""||isNaN(n)?"—":Number(n).toLocaleString("pt-BR")+" L";
+const emOperacao=()=>S.pontos.filter(p=>!p.pausado);
 const byId=(arr,id)=>arr.find(x=>String(x.id)===String(id));
 const toLocalInput=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+fmtHM(d);
 const setMsg=(id,t,err)=>{const m=$(id);m.classList.toggle("err",!!err);m.textContent=t||"";if(t&&!err){clearTimeout(m._t);m._t=setTimeout(()=>m.textContent="",4000);}};
@@ -410,9 +411,10 @@ const ST={ok:"Em dia",warn:"Molhar em breve",late:"Atrasado",none:"Sem registro"
 /* ---------- render ---------- */
 function renderPainel(){
   const now=new Date();
-  const infos=S.pontos.map(p=>pointInfo(p,now)).sort((a,b)=>{
-    if(a.status==="none"&&b.status!=="none")return 1; if(b.status==="none"&&a.status!=="none")return -1; return b.ratio-a.ratio;});
-  const late=infos.filter(i=>i.status==="late"||i.status==="none").length, warn=infos.filter(i=>i.status==="warn").length;
+  const todos=emOperacao().map(p=>pointInfo(p,now));
+  const semReg=todos.filter(i=>i.status==="none").length;
+  const infos=todos.filter(i=>i.status!=="none").sort((a,b)=>b.ratio-a.ratio); // sem registro não aparece no painel
+  const late=infos.filter(i=>i.status==="late").length, warn=infos.filter(i=>i.status==="warn").length;
   { const atr=infos.filter(i=>i.status==="late"), br=infos.filter(i=>i.status==="warn").sort((a,b)=>a.next-b.next);
     const al=$("#alerta"); const linhas=[];
     if(atr.length)linhas.push(`<div class="alerta late"><b class="t">${atr.length===1?"1 ponto atrasado":atr.length+" pontos atrasados"}</b><span>${atr.map(i=>`${esc(i.p.nome)} (atrasado ${fmtDur((now-i.next)/6e4)})`).join(" · ")}</span></div>`);
@@ -421,14 +423,15 @@ function renderPainel(){
   const d24=S.mol.filter(m=>now-new Date(m.quando)<864e5);
   const ativos=S.traj.filter(t=>t.status==="em_trajeto");
   $("#kpis").innerHTML=
-    `<div class="kpi ${late?"late":""}"><div class="lbl">Atrasados / sem registro</div><div class="val">${late}<small> de ${S.pontos.length}</small></div></div>`+
+    `<div class="kpi ${late?"late":""}"><div class="lbl">Atrasados</div><div class="val">${late}<small> de ${infos.length}</small></div></div>`+
     `<div class="kpi ${warn?"warn":""}"><div class="lbl">Molhar em breve</div><div class="val">${warn}</div></div>`+
     `<div class="kpi"><div class="lbl">Molhagens em 24 h</div><div class="val">${d24.length}</div></div>`+
     "";
   $("#kpis").innerHTML=$("#kpis").innerHTML.replace(/(<div class="kpi"><div class="lbl">Molhagens)/,`<div class="kpi"><div class="lbl">Frotas em trajeto</div><div class="val">${ativos.length}</div></div>$1`);
   renderTrips(now,ativos);
   const reg=canReg();
-  if(!S.pontos.length){$("#cards").innerHTML=`<div class="empty">Nenhum ponto cadastrado ainda.${canReg()?" Cadastre os trechos em <b>Frotas e pontos</b> para começar.":" Os trechos ainda vão ser cadastrados."}</div>`;}
+  if(!infos.length&&semReg){$("#cards").innerHTML=`<div class="empty">Nenhum ponto com molhagem registrada ainda.</div>`;}
+  else if(!infos.length){$("#cards").innerHTML=`<div class="empty">Nenhum ponto cadastrado ainda.${canReg()?" Cadastre os trechos em <b>Frotas e pontos</b> para começar.":" Os trechos ainda vão ser cadastrados."}</div>`;}
   else $("#cards").innerHTML=infos.map(i=>{
     const p=i.p; const fr=i.last?byId(S.frotas,i.last.frota_id):null;
     const w=Math.min(100,(i.ratio||0)*100);
@@ -470,7 +473,7 @@ async function exportarPdf(){
     const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
     const now=new Date(); const PW=doc.internal.pageSize.getWidth(), M=12;
     const dataHora=pad(now.getDate())+"/"+pad(now.getMonth()+1)+"/"+now.getFullYear()+" "+fmtHM(now);
-    const infos=S.pontos.map(p=>pointInfo(p,now)).sort((a,b)=>{
+    const infos=emOperacao().map(p=>pointInfo(p,now)).sort((a,b)=>{
       if(a.status==="none"&&b.status!=="none")return 1;if(b.status==="none"&&a.status!=="none")return -1;
       if(a.next&&b.next)return a.next-b.next;return 0;});
     const ativos=S.traj.filter(t=>t.status==="em_trajeto");
@@ -487,7 +490,7 @@ async function exportarPdf(){
     doc.setTextColor(30);
 
     // resumo
-    const kp=[["Pontos cadastrados",S.pontos.length],["Atrasados / sem registro",nLate],["Molhar na próxima hora",nWarn],["Em dia",nOk],["Frotas em trajeto",ativos.length],["Molhagens em 24 h",d24.length]];
+    const kp=[["Pontos em operação",infos.length],["Atrasados / sem registro",nLate],["Molhar na próxima hora",nWarn],["Em dia",nOk],["Frotas em trajeto",ativos.length],["Molhagens em 24 h",d24.length]];
     const bw=(PW-2*M-5*4)/6; kp.forEach(([l,v],k)=>{const x=M+k*(bw+4);
       doc.setDrawColor(210);doc.roundedRect(x,25,bw,16,2,2,"S");
       doc.setFontSize(8);doc.setTextColor(110);doc.text(l,x+3,30);
@@ -553,8 +556,7 @@ async function exportarPainelPdf(){
     const now=new Date(), PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight(), M=10;
     const dataHora=pad(now.getDate())+"/"+pad(now.getMonth()+1)+"/"+now.getFullYear()+" "+fmtHM(now);
     // mais urgente primeiro; sem registro por último
-    const infos=S.pontos.map(p=>pointInfo(p,now)).sort((a,b)=>{
-      if(a.status==="none"&&b.status!=="none")return 1;if(b.status==="none"&&a.status!=="none")return -1;return b.ratio-a.ratio;});
+    const infos=emOperacao().map(p=>pointInfo(p,now)).filter(i=>i.status!=="none").sort((a,b)=>b.ratio-a.ratio);
     const ativos=S.traj.filter(t=>t.status==="em_trajeto");
     const C={ok:[31,138,76],warn:[201,138,18],late:[194,58,58],none:[90,106,128]};
     const SOFT={ok:[220,242,228],warn:[251,239,214],late:[248,221,221],none:[232,237,243]};
@@ -678,12 +680,12 @@ function renderTrips(now,ativos){
 }
 
 function renderTimeline(now){
-  const box=$("#timeline"); if(!S.pontos.length){box.innerHTML=`<p style="color:var(--muted);margin:0">Sem pontos cadastrados.</p>`;return;}
-  const L=170,R=16,W=960,rowH=26,top=8,H=top+S.pontos.length*rowH+26; const t0=+now-864e5; const x=t=>L+(t-t0)/864e5*(W-L-R);
+  const box=$("#timeline"); const PT=emOperacao(); if(!PT.length){box.innerHTML=`<p style="color:var(--muted);margin:0">Sem pontos cadastrados.</p>`;return;}
+  const L=170,R=16,W=960,rowH=26,top=8,H=top+PT.length*rowH+26; const t0=+now-864e5; const x=t=>L+(t-t0)/864e5*(W-L-R);
   let g="";
   for(let h=0;h<=24;h+=3){const t=t0+h*36e5;const X=x(t);
     g+=`<line x1="${X}" x2="${X}" y1="${top}" y2="${H-22}" stroke="var(--line)" stroke-width="1"/><text x="${X}" y="${H-6}" text-anchor="${h===0?"start":h===24?"end":"middle"}">${h===24?"agora":fmtHM(new Date(t))}</text>`;}
-  S.pontos.forEach((p,i)=>{const cy=top+i*rowH+rowH/2;
+  PT.forEach((p,i)=>{const cy=top+i*rowH+rowH/2;
     g+=`<text class="name" x="0" y="${cy+4}">${esc(p.nome.length>24?p.nome.slice(0,23)+"…":p.nome)}</text>`;
     g+=`<rect x="${L}" y="${cy-5}" width="${W-L-R}" height="10" rx="5" fill="var(--surface-2)"/>`;
     S.mol.filter(m=>m.ponto_id===p.id&&+new Date(m.quando)>=t0&&+new Date(m.quando)<=+now).forEach(m=>{
@@ -700,9 +702,9 @@ function fillSelect(sel,items,label,withAll){
 }
 function renderSelects(){
   const pl=p=>p.nome+(p.km?" — "+p.km:""), fl=f=>f.prefixo+(f.descricao?" — "+f.descricao:"");
-  fillSelect($("#mPonto"),S.pontos,pl); fillSelect($("#mFrota"),S.frotas,fl);
+  fillSelect($("#mPonto"),emOperacao(),pl); fillSelect($("#mFrota"),S.frotas,fl);
   const busy=new Set(S.traj.filter(t=>t.status==="em_trajeto").map(t=>t.frota_id));
-  fillSelect($("#tFrota"),S.frotas,f=>fl(f)+(busy.has(f.id)?" (em trajeto)":"")); fillSelect($("#tDestino"),S.pontos,pl);
+  fillSelect($("#tFrota"),S.frotas,f=>fl(f)+(busy.has(f.id)?" (em trajeto)":"")); fillSelect($("#tDestino"),emOperacao(),pl);
   [...$("#tFrota").options].forEach(o=>{o.disabled=busy.has(+o.value);});
   if($("#tFrota").selectedOptions[0]&&$("#tFrota").selectedOptions[0].disabled){const free=[...$("#tFrota").options].find(o=>!o.disabled);if(free)$("#tFrota").value=free.value;}
   const origens=[...new Set(["Base",...S.traj.map(t=>t.origem).filter(Boolean)])];
@@ -728,9 +730,9 @@ function renderCadastros(){
   if(editando)return; // não apaga o que está sendo digitado durante a atualização automática
   const iv=p=>Number(p.intervalo_min)||360;
   $("#pTable").innerHTML=`<thead><tr><th>Ponto</th><th>Trecho / km</th><th class="num">Intervalo</th><th></th></tr></thead><tbody>`+
-    (S.pontos.length?S.pontos.map(p=>`<tr><td><b>${esc(p.nome)}</b></td><td>${esc([p.trecho,p.km].filter(Boolean).join(" · ")||"—")}</td>
+    (S.pontos.length?[...emOperacao(),...S.pontos.filter(p=>p.pausado)].map(p=>`<tr class="${p.pausado?"off":""}"><td><b>${esc(p.nome)}</b>${p.pausado?' <span class="tag">stand-by</span>':""}</td><td>${esc([p.trecho,p.km].filter(Boolean).join(" · ")||"—")}</td>
       <td class="num">${adm?`<input type="number" min="15" step="15" value="${iv(p)}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min`:fmtDur(iv(p))}</td>
-      <td><span class="ucell"><button class="btn ghost small" data-edit="ponto:${p.id}">Editar</button>${adm?`<button class="btn danger small" data-del="ponto:${p.id}">Remover</button>`:""}</span></td></tr>`).join("")
+      <td><span class="ucell"><button class="btn ghost small" data-edit="ponto:${p.id}">Editar</button><button class="btn ghost small" data-pausa="${p.id}:${p.pausado?0:1}">${p.pausado?"Reativar":"Pausar"}</button>${adm?`<button class="btn danger small" data-del="ponto:${p.id}">Remover</button>`:""}</span></td></tr>`).join("")
     :`<tr><td colspan="4" style="color:var(--muted)">Nenhum ponto cadastrado.</td></tr>`)+"</tbody>";
   $("#fTable").innerHTML=`<thead><tr><th>Frota</th><th>Descrição</th><th class="num">Tanque</th><th></th></tr></thead><tbody>`+
     (S.frotas.length?S.frotas.map(f=>`<tr><td><b>${esc(f.prefixo)}</b></td><td>${esc(f.descricao||"—")}</td><td class="num">${fmtL(f.capacidade_l)}</td>
@@ -933,6 +935,12 @@ document.addEventListener("click",async e=>{
     try{await rpc("molh_salvar_horario",{p_token:token,p_id:id,p_inicio:ini||null,p_fim:fim||null,p_dias:dias&&dias.length===7?null:dias});
       horEdit=null;setMsg("#uMsg",livre?`Acesso de ${u?u.usuario:""} liberado em qualquer horário.`:`Horário de ${u?u.usuario:""} salvo.`);await carregarUsuarios();}
     catch(err){setMsg("#uMsg",msgErr(err),true);hs.disabled=false;}
+    return;}
+  const pz=e.target.closest("[data-pausa]");
+  if(pz){const[id,pausar]=pz.dataset.pausa.split(":");const p=byId(S.pontos,id);pz.disabled=true;
+    try{await rpc("molh_pausar_ponto",{p_token:token,p_id:+id,p_pausar:pausar==="1"});
+      setMsg("#pMsg",pausar==="1"?`${p?p.nome:"Ponto"} em stand-by: saiu do painel e dos PDFs. O histórico continua guardado.`:`${p?p.nome:"Ponto"} reativado e de volta ao painel.`);await carregar();}
+    catch(err){pz.disabled=false;banner(esc(msgErr(err)));}
     return;}
   if(e.target.closest("#bPdf")){exportarPdf();return;}
   if(e.target.closest("#bPdfPainel")){exportarPainelPdf();return;}
