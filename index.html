@@ -333,6 +333,7 @@ const ERROS={
   NOME_VAZIO:"Informe o nome.",
   PREFIXO_VAZIO:"Informe o prefixo da frota.",
   PAPEL_INVALIDO:"Perfil inválido.",
+  AUTO_EXCLUSAO:"Você não pode excluir o seu próprio usuário.",
   AUTO_ALTERACAO:"Você não pode desativar nem tirar o seu próprio acesso de administrador.",
   PONTO_INVALIDO:"Esse ponto foi removido. Atualize a página.",
   FROTA_INVALIDA:"Essa frota foi removida. Atualize a página.",
@@ -740,7 +741,7 @@ function renderUsuarios(){
       <td><select data-f="papel" aria-label="Perfil" ${me?"disabled":""}>${Object.keys(PAPEL).map(k=>`<option value="${k}"${u.papel===k?" selected":""}>${PAPEL[k]}</option>`).join("")}</select></td>
       <td><select data-f="ativo" aria-label="Situação" ${me?"disabled":""}><option value="1"${u.ativo?" selected":""}>Ativo</option><option value="0"${u.ativo?"":" selected"}>Desativado</option></select>${u.troca_senha&&u.ativo?'<span class="meta" style="display:block;font-size:12px;color:var(--muted)">aguardando 1º acesso</span>':""}</td>
       <td><input data-f="senha" type="text" autocomplete="off" placeholder="deixe vazio para manter" style="min-width:170px"></td>
-      <td><button class="btn small" data-usave="${u.id}">Salvar</button></td></tr>`;}).join("")+"</tbody>";
+      <td><span class="ucell"><button class="btn small" data-usave="${u.id}">Salvar</button>${me?"":`<button class="btn danger small" data-del="usu:${u.id}">Excluir</button>`}</span></td></tr>`;}).join("")+"</tbody>";
 }
 
 function renderAll(){renderSelects();renderPainel();renderHistorico();renderCadastros();}
@@ -897,8 +898,8 @@ document.addEventListener("click",async e=>{
   if(d){
     if(!d.classList.contains("armed")){d.classList.add("armed");d._txt=d.textContent;d.textContent="Confirmar?";setTimeout(()=>{if(d.isConnected){d.classList.remove("armed");d.textContent=d._txt;}},3500);return;}
     const[tipo,id]=d.dataset.del.split(":");d.disabled=true;
-    const fn={mol:"molh_excluir_molhagem",ponto:"molh_remover_ponto",frota:"molh_remover_frota"}[tipo];
-    try{await rpc(fn,{p_token:token,p_id:+id});await carregar();}catch(err){d.disabled=false;d.textContent="Falhou";banner(esc(msgErr(err)));}
+    const fn={mol:"molh_excluir_molhagem",ponto:"molh_remover_ponto",frota:"molh_remover_frota",usu:"molh_excluir_usuario"}[tipo];
+    try{await rpc(fn,{p_token:token,p_id:+id});if(tipo==="usu"){const x=byId(usuarios,+id);setMsg("#uMsg",`Usuário ${x?x.usuario:""} excluído.`);await carregarUsuarios();}else await carregar();}catch(err){d.disabled=false;d.textContent="Falhou";banner(esc(msgErr(err)));}
   }
 });
 document.addEventListener("input",e=>{if(e.target.id&&e.target.id.startsWith("chg-"))chegVal=e.target.value;});
