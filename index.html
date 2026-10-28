@@ -736,7 +736,7 @@ function renderUsuarios(){
   if(!canAdmin())return;
   $("#uTable").innerHTML=`<thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Situação</th><th>Nova senha provisória</th><th></th></tr></thead><tbody>`+
     usuarios.map(u=>{const me=String(u.id)===String(perfil.id);
-      return `<tr class="${u.ativo?"":"off"}" data-uid="${u.id}"><td><b>${esc(u.nome)}</b>${me?' <span class="tag">você</span>':""}</td><td class="mono">${esc(u.usuario)}</td>
+      return `<tr class="${u.ativo?"":"off"}" data-uid="${u.id}"><td><input data-f="nome" maxlength="80" value="${esc(u.nome)}" aria-label="Nome" style="min-width:150px">${me?' <span class="tag">você</span>':""}</td><td class="mono">${esc(u.usuario)}</td>
       <td><select data-f="papel" aria-label="Perfil" ${me?"disabled":""}>${Object.keys(PAPEL).map(k=>`<option value="${k}"${u.papel===k?" selected":""}>${PAPEL[k]}</option>`).join("")}</select></td>
       <td><select data-f="ativo" aria-label="Situação" ${me?"disabled":""}><option value="1"${u.ativo?" selected":""}>Ativo</option><option value="0"${u.ativo?"":" selected"}>Desativado</option></select>${u.troca_senha&&u.ativo?'<span class="meta" style="display:block;font-size:12px;color:var(--muted)">aguardando 1º acesso</span>':""}</td>
       <td><input data-f="senha" type="text" autocomplete="off" placeholder="deixe vazio para manter" style="min-width:170px"></td>
@@ -870,8 +870,10 @@ document.addEventListener("click",async e=>{
   const us=e.target.closest("[data-usave]");
   if(us){const row=us.closest("tr");const u=byId(usuarios,us.dataset.usave);if(!u)return;
     const senha=row.querySelector('[data-f="senha"]').value;us.disabled=true;
-    try{await rpc("molh_salvar_usuario",{p_token:token,p_id:u.id,p_usuario:u.usuario,p_nome:u.nome,p_papel:row.querySelector('[data-f="papel"]').value,p_senha:senha,p_ativo:row.querySelector('[data-f="ativo"]').value==="1"});
-      setMsg("#uMsg",senha?`Senha de ${u.usuario} redefinida. A pessoa troca no próximo acesso.`:`Usuário ${u.usuario} atualizado.`);await carregarUsuarios();}
+    try{await rpc("molh_salvar_usuario",{p_token:token,p_id:u.id,p_usuario:u.usuario,p_nome:(row.querySelector('[data-f="nome"]').value.trim()||u.nome),p_papel:row.querySelector('[data-f="papel"]').value,p_senha:senha,p_ativo:row.querySelector('[data-f="ativo"]').value==="1"});
+      setMsg("#uMsg",senha?`Senha de ${u.usuario} redefinida. A pessoa troca no próximo acesso.`:`Usuário ${u.usuario} atualizado.`);
+      if(String(u.id)===String(perfil.id)){perfil.nome=row.querySelector('[data-f="nome"]').value.trim()||u.nome;$("#whoName").textContent=perfil.nome;}
+      await carregarUsuarios();}
     catch(err){setMsg("#uMsg",msgErr(err),true);us.disabled=false;}
     return;}
   if(e.target.closest("#bPdf")){exportarPdf();return;}
