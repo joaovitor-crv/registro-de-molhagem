@@ -542,69 +542,86 @@ async function exportarPainelPdf(){
   const b=$("#bPdfPainel");const txt=b.textContent;b.disabled=true;b.textContent="Gerando PDF…";
   try{
     await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-    const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
-    const now=new Date(), PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight(), M=12;
+    const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+    const now=new Date(), PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight(), M=10;
     const dataHora=pad(now.getDate())+"/"+pad(now.getMonth()+1)+"/"+now.getFullYear()+" "+fmtHM(now);
+    // mais urgente primeiro; sem registro por último
     const infos=S.pontos.map(p=>pointInfo(p,now)).sort((a,b)=>{
-      if(a.status==="none"&&b.status!=="none")return -1;if(b.status==="none"&&a.status!=="none")return 1;return b.ratio-a.ratio;});
+      if(a.status==="none"&&b.status!=="none")return 1;if(b.status==="none"&&a.status!=="none")return -1;return b.ratio-a.ratio;});
     const ativos=S.traj.filter(t=>t.status==="em_trajeto");
     const C={ok:[31,138,76],warn:[201,138,18],late:[194,58,58],none:[90,106,128]};
     const SOFT={ok:[220,242,228],warn:[251,239,214],late:[248,221,221],none:[232,237,243]};
     const BG={ok:[255,255,255],warn:[253,248,237],late:[252,240,240],none:[255,255,255]};
     const BORDER={ok:[140,192,160],warn:C.warn,late:C.late,none:[214,222,232]};
     const INK=[20,32,48],MUTED=[90,106,128],BLUE=[31,111,209];
-    const cols=3,gap=5,cw=(PW-2*M-gap*(cols-1))/cols,ch=48;
+    const cols=3,gap=4,cw=(PW-2*M-gap*(cols-1))/cols,P=3.5,LXo=18.5;
     const cab=(primeira)=>{
-      doc.setFillColor(22,38,61);doc.rect(0,0,PW,18,"F");
-      doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text("Controle de Poeira",M,11.5);
-      doc.setFont("helvetica","normal");doc.setFontSize(9);
-      doc.text("Gerado em "+dataHora+(perfil&&perfil.nome?" por "+perfil.nome:""),PW-M,11.5,{align:"right"});
-      if(primeira){doc.setTextColor(...INK);doc.setFont("helvetica","bold");doc.setFontSize(12);doc.text("PONTOS DE MOLHAGEM",M,26);
-        doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...MUTED);
-        doc.setFont("helvetica","bold");doc.setFontSize(12);const tw=doc.getTextWidth("PONTOS DE MOLHAGEM");doc.setFont("helvetica","normal");doc.setFontSize(8);
-        doc.text("Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido.",M+tw+5,26);}
-      return primeira?31:24;};
+      doc.setFillColor(22,38,61);doc.rect(0,0,PW,16,"F");
+      doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text("Controle de Poeira",M,10.5);
+      doc.setFont("helvetica","normal");doc.setFontSize(8);
+      doc.text("Gerado em "+dataHora+(perfil&&perfil.nome?" por "+perfil.nome:""),PW-M,10.5,{align:"right"});
+      if(!primeira)return 21;
+      doc.setTextColor(...INK);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text("PONTOS DE MOLHAGEM",M,24);
+      doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...MUTED);
+      doc.text(doc.splitTextToSize("Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido.",PW-2*M),M,28.5);
+      return 33;};
+    const altura=i=>{const p=i.p,w=cw-2*P,LW=cw-2*P-LXo;doc.setFont("helvetica","bold");doc.setFontSize(8.5);
+      let h=6.5+Math.min(2,doc.splitTextToSize(p.nome.toUpperCase(),w).length)*3.6+0.6+4.2;
+      if(S.traj.some(t=>t.status==="em_trajeto"&&t.destino_id===p.id))h+=3.4;
+      h+=3.2+2.4+5.6;doc.setFontSize(6.5);
+      const vs=[i.last?whenLabel(i.lt)+" · 000000000":"-",null,fmtDur(i.interval)+(i.avg?" · real médio "+fmtDur(i.avg):"")];
+      vs.forEach((v,n)=>{let two;if(n===1)two=!!(i.last&&i.next<now);else{doc.setFont("helvetica","normal");two=doc.splitTextToSize(v,LW).length>1;}h+=two?6.6:3.8;});
+      return h+0.8;};
+    const alt=infos.map(altura);
     let y0=cab(true),k=0;
     if(!infos.length){doc.setFontSize(10);doc.setTextColor(...MUTED);doc.text("Nenhum ponto cadastrado.",M,y0+8);}
     infos.forEach(i=>{
-      const col=k%cols; if(col===0&&k>0)y0+=ch+gap;
-      if(y0+ch>PH-12){doc.addPage();y0=cab(false);}
-      const x=M+col*(cw+gap),y=y0,st=i.status,p=i.p;k++;
-      doc.setFillColor(...BG[st]);doc.setDrawColor(...BORDER[st]);doc.setLineWidth(0.35);doc.roundedRect(x,y,cw,ch,2.5,2.5,"FD");
-      // pill
-      const pill=ST[st].toUpperCase();doc.setFont("helvetica","bold");doc.setFontSize(6.5);
-      const pw=doc.getTextWidth(pill)+5;doc.setFillColor(...SOFT[st]);doc.roundedRect(x+cw-4-pw,y+3.5,pw,5,2.5,2.5,"F");
-      doc.setTextColor(...C[st]);doc.text(pill,x+cw-4-pw/2,y+7,{align:"center"});
-      // nome e trecho
-      doc.setTextColor(...INK);doc.setFontSize(10.5);
-      doc.text(doc.splitTextToSize(p.nome.toUpperCase(),cw-pw-12)[0],x+4,y+8);
+      const col=k%cols,ch=Math.max(...alt.slice(k-col,k-col+cols)); if(col===0&&k>0)y0+=Math.max(...alt.slice(k-cols,k))+gap;
+      if(y0+ch>PH-11){doc.addPage();y0=cab(false);}
+      const x=M+col*(cw+gap),y=y0,st=i.status,p=i.p,w=cw-2*P;k++;
+      doc.setFillColor(...BG[st]);doc.setDrawColor(...BORDER[st]);doc.setLineWidth(0.3);doc.roundedRect(x,y,cw,ch,2,2,"FD");
+      let yy=y+6.5;
+      // nome (até 2 linhas)
+      doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(...INK);
+      doc.splitTextToSize(p.nome.toUpperCase(),w).slice(0,2).forEach((l,n)=>{doc.text(l,x+P,yy);yy+=n===0?0:0;yy+=3.6;});
+      yy+=0.6;
+      // etiqueta + trecho
+      const pill=ST[st].toUpperCase();doc.setFontSize(5.5);
+      const pw=doc.getTextWidth(pill)+4;doc.setFillColor(...SOFT[st]);doc.roundedRect(x+P,yy-3.2,pw,4.2,2.1,2.1,"F");
+      doc.setTextColor(...C[st]);doc.text(pill,x+P+pw/2,yy,{align:"center"});
       const sub=[p.trecho,p.km].filter(Boolean).join(" · ");
-      if(sub){doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...MUTED);doc.text(doc.splitTextToSize(sub.toUpperCase(),cw-8)[0],x+4,y+12);}
+      if(sub){doc.setFont("helvetica","normal");doc.setFontSize(6);doc.setTextColor(...MUTED);doc.text(doc.splitTextToSize(sub.toUpperCase(),w-pw-2)[0],x+P+pw+2,yy);}
+      yy+=4.2;
       const tj=ativos.filter(t=>t.destino_id===p.id);
-      if(tj.length){const f=byId(S.frotas,tj[0].frota_id);doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(...BLUE);
-        doc.text("A caminho: "+(f?f.prefixo:"frota")+" · saiu há "+fmtDur((now-new Date(tj[0].saida))/6e4)+(tj.length>1?" (+"+(tj.length-1)+")":""),x+4,y+15.5);}
+      if(tj.length){const f=byId(S.frotas,tj[0].frota_id);doc.setFont("helvetica","bold");doc.setFontSize(6);doc.setTextColor(...BLUE);
+        doc.text(doc.splitTextToSize("A caminho: "+(f?f.prefixo:"frota")+" · saiu há "+fmtDur((now-new Date(tj[0].saida))/6e4)+(tj.length>1?" (+"+(tj.length-1)+")":""),w)[0],x+P,yy);yy+=3.4;}
       // tempo desde a última
-      doc.setFont("helvetica","bold");doc.setFontSize(15);doc.setTextColor(...(st==="none"?INK:C[st]));
-      const big=i.last?fmtDur(i.el):"-";doc.text(big,x+4,y+23.5);
-      const bwid=doc.getTextWidth(big);doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(...MUTED);
-      doc.text(i.last?"desde a última molhagem":"nenhuma molhagem registrada",x+6+bwid,y+23.5);
+      yy+=3.2;
+      doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(...(st==="none"?INK:C[st]));
+      const big=i.last?fmtDur(i.el):"-";doc.text(big,x+P,yy);
+      const bwid=doc.getTextWidth(big);doc.setFont("helvetica","normal");doc.setFontSize(6);doc.setTextColor(...MUTED);
+      doc.text(i.last?"desde a última molhagem":"nenhuma molhagem registrada",x+P+bwid+1.5,yy);
       // barra
-      doc.setFillColor(228,234,241);doc.roundedRect(x+4,y+26.5,cw-8,1.8,0.9,0.9,"F");
-      const r=Math.min(1,i.ratio||0);if(r>0){doc.setFillColor(...C[st]);doc.roundedRect(x+4,y+26.5,Math.max(1.8,(cw-8)*r),1.8,0.9,0.9,"F");}
+      yy+=2.4;doc.setFillColor(228,234,241);doc.roundedRect(x+P,yy,w,1.6,0.8,0.8,"F");
+      const r=Math.min(1,i.ratio||0);if(r>0){doc.setFillColor(...C[st]);doc.roundedRect(x+P,yy,Math.max(1.6,w*r),1.6,0.8,0.8,"F");}
+      yy+=5.6;
       // fatos
       const fr=i.last?byId(S.frotas,i.last.frota_id):null;
       let prox="assim que possível",late=false;
-      if(i.last){const left=(i.next-now)/6e4;late=left<0;prox=whenLabel(i.next)+(late?" · atrasada "+fmtDur(-left):" (em "+fmtDur(left)+")");}
+      if(i.last){const left=(i.next-now)/6e4;late=left<0;prox=late?[whenLabel(i.next),"atrasada "+fmtDur(-left)]:whenLabel(i.next)+" (em "+fmtDur(left)+")";}
       const fatos=[["Última",i.last?whenLabel(i.lt)+" · "+(fr?fr.prefixo:"frota removida"):"-",false],
         ["Próxima prevista",prox,late],["Intervalo",fmtDur(i.interval)+(i.avg?" · real médio "+fmtDur(i.avg):""),false]];
-      fatos.forEach(([l,v,dest],j)=>{const yy=y+34+j*4.6;doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(...MUTED);doc.text(l,x+4,yy);
-        doc.setFont("helvetica",dest?"bold":"normal");doc.setTextColor(...(dest?C.late:INK));doc.text(doc.splitTextToSize(v,cw-36)[0],x+31,yy);});
+      const LX=x+P+LXo,LW=x+cw-P-LX;
+      fatos.forEach(([l,v,dest])=>{doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(...MUTED);doc.text(l,x+P,yy);
+        doc.setFont("helvetica",dest?"bold":"normal");doc.setTextColor(...(dest?C.late:INK));
+        const ls=(Array.isArray(v)?v:doc.splitTextToSize(v,LW)).slice(0,2);ls.forEach((ln,n)=>doc.text(ln,LX,yy+n*3));
+        yy+=ls.length>1?6.6:3.8;});
     });
     const n=doc.getNumberOfPages();
-    for(let q=1;q<=n;q++){doc.setPage(q);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.setTextColor(120);
-      doc.text("Desenvolvido por João Vitor - CRV",M,PH-6);
-      doc.text("Controle de Poeira · "+dataHora,PW/2,PH-6,{align:"center"});
-      doc.text("Página "+q+" de "+n,PW-M,PH-6,{align:"right"});}
+    for(let q=1;q<=n;q++){doc.setPage(q);doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(120);
+      doc.text("Desenvolvido por João Vitor - CRV",M,PH-5);
+      doc.text("Controle de Poeira · "+dataHora,PW/2,PH-5,{align:"center"});
+      doc.text("Página "+q+" de "+n,PW-M,PH-5,{align:"right"});}
     doc.save("controle-de-poeira_painel_"+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+"_"+pad(now.getHours())+pad(now.getMinutes())+".pdf");
   }catch(e){banner("Não foi possível gerar o PDF. "+esc(msgErr(e)));}
   finally{b.disabled=false;b.textContent=txt;}
