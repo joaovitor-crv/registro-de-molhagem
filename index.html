@@ -333,6 +333,10 @@ const ERROS={
   NOME_VAZIO:"Informe o nome.",
   PREFIXO_VAZIO:"Informe o prefixo da frota.",
   PAPEL_INVALIDO:"Perfil inválido.",
+  FORA_HORARIO:"Seu acesso está fora do horário liberado pelo administrador.",
+  AUTO_HORARIO:"Você não pode limitar o horário do seu próprio usuário.",
+  HORARIO_INVALIDO:"Informe hora de início e de fim diferentes, ou deixe as duas vazias.",
+  DIAS_VAZIO:"Marque pelo menos um dia da semana.",
   AUTO_EXCLUSAO:"Você não pode excluir o seu próprio usuário.",
   AUTO_ALTERACAO:"Você não pode desativar nem tirar o seu próprio acesso de administrador.",
   PONTO_INVALIDO:"Esse ponto foi removido. Atualize a página.",
@@ -346,7 +350,7 @@ const ERROS={
   CHEGADA_INVALIDA:"O horário da chegada precisa ser depois da saída e não pode estar no futuro.",
   REDE:"Sem conexão com o servidor. Verifique a internet e tente de novo."
 };
-const msgErr=e=>ERROS[e&&e.message]||("Erro: "+(e&&e.message||"desconhecido"));
+const msgErr=e=>(ERROS[e&&e.message]||("Erro: "+(e&&e.message||"desconhecido")))+(e&&e.message==="FORA_HORARIO"&&e.detail?" Horário liberado: "+e.detail+".":"");
 const store={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v);}catch(e){}}};
 const URL_=String(window.SUPABASE_URL||"").trim().replace(/\/+$/,"");
 const KEY=String(window.SUPABASE_KEY||"").trim();
@@ -362,8 +366,10 @@ async function rpc(fn,args){
   catch(e){throw new Error("REDE");}
   const txt=await r.text();let data=null;try{data=txt?JSON.parse(txt):null;}catch(e){}
   if(!r.ok){const code=(data&&data.message)||("HTTP "+r.status);
+    const err=new Error(code);err.detail=data&&data.details||"";
     if(code==="SESSAO_EXPIRADA"&&fn!=="molh_login")sairLocal(ERROS.SESSAO_EXPIRADA);
-    throw new Error(code);}
+    if(code==="FORA_HORARIO"&&fn!=="molh_login")sairLocal(msgErr(err));
+    throw err;}
   return data;
 }
 
@@ -733,15 +739,29 @@ async function salvarEdicao(btn){
   }catch(err){setMsg(msg,msgErr(err),true);btn.disabled=false;}
 }
 
+let horEdit=null;
+const DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+function horEditor(u){const ds=u.acesso_dias||[0,1,2,3,4,5,6];
+  return `<tr class="horrow" data-horrow="${u.id}"><td colspan="7" style="background:var(--surface-2)">
+    <div class="ucell" style="gap:12px">
+      <label class="ucell">Das <input type="time" data-h="ini" value="${esc(u.acesso_inicio||"")}"></label>
+      <label class="ucell">às <input type="time" data-h="fim" value="${esc(u.acesso_fim||"")}"></label>
+      <span class="ucell">${DIAS.map((d,i)=>`<label class="ucell" style="gap:3px"><input type="checkbox" data-h="dia" value="${i}"${ds.includes(i)?" checked":""}>${d}</label>`).join("")}</span>
+      <button class="btn small" data-horsave="${u.id}">Salvar horário</button>
+      <button class="btn ghost small" data-horlivre="${u.id}">Deixar livre</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px">Horário de Brasília. Turno que passa da meia-noite (ex.: 22:00 às 06:00) vale pelo dia em que começa. Fora do horário a pessoa não entra, e quem estiver usando é desconectado.</div>
+  </td></tr>`;}
 function renderUsuarios(){
   if(!canAdmin())return;
-  $("#uTable").innerHTML=`<thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Situação</th><th>Nova senha provisória</th><th></th></tr></thead><tbody>`+
+  $("#uTable").innerHTML=`<thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Situação</th><th>Horário de acesso</th><th>Nova senha provisória</th><th></th></tr></thead><tbody>`+
     usuarios.map(u=>{const me=String(u.id)===String(perfil.id);
       return `<tr class="${u.ativo?"":"off"}" data-uid="${u.id}"><td><input data-f="nome" maxlength="80" value="${esc(u.nome)}" aria-label="Nome" style="min-width:150px">${me?' <span class="tag">você</span>':""}</td><td class="mono">${esc(u.usuario)}</td>
       <td><select data-f="papel" aria-label="Perfil" ${me?"disabled":""}>${Object.keys(PAPEL).map(k=>`<option value="${k}"${u.papel===k?" selected":""}>${PAPEL[k]}</option>`).join("")}</select></td>
       <td><select data-f="ativo" aria-label="Situação" ${me?"disabled":""}><option value="1"${u.ativo?" selected":""}>Ativo</option><option value="0"${u.ativo?"":" selected"}>Desativado</option></select>${u.troca_senha&&u.ativo?'<span class="meta" style="display:block;font-size:12px;color:var(--muted)">aguardando 1º acesso</span>':""}</td>
+      <td>${u.papel==="admin"?'<span style="color:var(--muted)">Livre (administrador)</span>':`<span class="ucell"><span>${u.horario?esc(u.horario):'<span style="color:var(--muted)">Livre</span>'}</span><button class="btn ghost small" data-hor="${u.id}">${horEdit===u.id?"Fechar":"Definir"}</button></span>`}</td>
       <td><input data-f="senha" type="text" autocomplete="off" placeholder="deixe vazio para manter" style="min-width:170px"></td>
-      <td><span class="ucell"><button class="btn small" data-usave="${u.id}">Salvar</button>${me?"":`<button class="btn danger small" data-del="usu:${u.id}">Excluir</button>`}</span></td></tr>`;}).join("")+"</tbody>";
+      <td><span class="ucell"><button class="btn small" data-usave="${u.id}">Salvar</button>${me?"":`<button class="btn danger small" data-del="usu:${u.id}">Excluir</button>`}</span></td></tr>`+(horEdit===u.id&&u.papel!=="admin"?horEditor(u):"");}).join("")+"</tbody>";
 }
 
 function renderAll(){renderSelects();renderPainel();renderHistorico();renderCadastros();}
@@ -876,6 +896,16 @@ document.addEventListener("click",async e=>{
       if(String(u.id)===String(perfil.id)){perfil.nome=row.querySelector('[data-f="nome"]').value.trim()||u.nome;$("#whoName").textContent=perfil.nome;}
       await carregarUsuarios();}
     catch(err){setMsg("#uMsg",msgErr(err),true);us.disabled=false;}
+    return;}
+  const hb=e.target.closest("[data-hor]");if(hb){const id=+hb.dataset.hor;horEdit=horEdit===id?null:id;renderUsuarios();return;}
+  const hs=e.target.closest("[data-horsave],[data-horlivre]");
+  if(hs){const livre=!!hs.dataset.horlivre,id=+(hs.dataset.horsave||hs.dataset.horlivre),row=hs.closest("tr");const u=byId(usuarios,id);
+    const ini=livre?"":row.querySelector('[data-h="ini"]').value,fim=livre?"":row.querySelector('[data-h="fim"]').value;
+    const dias=livre?null:[...row.querySelectorAll('[data-h="dia"]:checked')].map(x=>+x.value);
+    hs.disabled=true;
+    try{await rpc("molh_salvar_horario",{p_token:token,p_id:id,p_inicio:ini||null,p_fim:fim||null,p_dias:dias&&dias.length===7?null:dias});
+      horEdit=null;setMsg("#uMsg",livre?`Acesso de ${u?u.usuario:""} liberado em qualquer horário.`:`Horário de ${u?u.usuario:""} salvo.`);await carregarUsuarios();}
+    catch(err){setMsg("#uMsg",msgErr(err),true);hs.disabled=false;}
     return;}
   if(e.target.closest("#bPdf")){exportarPdf();return;}
   if(e.target.closest("#bPdfPainel")){exportarPainelPdf();return;}
