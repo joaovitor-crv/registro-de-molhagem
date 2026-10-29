@@ -64,12 +64,12 @@ h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.03e
 .sec{display:flex;flex-direction:column;gap:12px}
 .sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .sec-head .note{color:var(--muted);font-size:13px}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
 .kpi .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .kpi .val{font-family:var(--display);font-size:34px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
 .kpi .val small{font-size:16px;color:var(--muted);font-weight:500}
-.kpi.late .val{color:var(--late)} .kpi.warn .val{color:var(--warn)}
+.kpi.late .val{color:var(--late)} .kpi.warn .val{color:var(--warn)} .kpi.chuva .val{color:var(--water)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .trip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .trip .tf{font-family:var(--display);font-size:24px;font-weight:600;line-height:1;letter-spacing:.02em}
@@ -154,7 +154,34 @@ tr:last-child td{border-bottom:0}
 .urow .uname{font-weight:600;flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
 .urow .meta{font-size:12px;color:var(--muted);display:block;font-weight:400}
 .urow select{width:auto;flex:0 1 200px}
+/* chuva */
+.pill.chuva{background:var(--water-soft);color:var(--water)}
+.bar.chuva i{background:var(--sky)}
+.card.st-chuva{border-color:var(--water);background:color-mix(in srgb,var(--water-soft) 40%,var(--surface))}
+.card.st-chuva .elapsed .big{color:var(--water)}
+.chuvas{display:flex;flex-direction:column;gap:8px}
+.chuva-ativa{background:var(--water-soft);border:1px solid var(--water);border-radius:var(--r);padding:12px 14px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.chuva-ativa .ic{flex:none;width:40px;height:40px;border-radius:10px;background:var(--water);display:flex;align-items:center;justify-content:center}
+.chuva-ativa .tx{flex:999 1 320px;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.chuva-ativa .tx b{font-family:var(--display);font-size:19px;letter-spacing:.03em;text-transform:uppercase;color:var(--water)}
+.chuva-ativa .tx span{color:var(--fg)}
+.chbox{background:var(--surface);border:2px solid var(--water);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px}
+.chbox .top{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chgrp{display:flex;flex-direction:column;gap:8px}
+.chgrp-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.chgrp-h h3{margin:0;font-size:15px;font-weight:600}
+.chgrp-h h3 span{font-weight:400;color:var(--muted)}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.chip{min-height:48px;display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:500 14px var(--body);text-align:left;cursor:pointer}
+.chip .bx{flex:none;width:22px;height:22px;border-radius:6px;border:2px solid var(--muted);display:flex;align-items:center;justify-content:center}
+.chip[aria-pressed="true"]{border:2px solid var(--water);background:var(--water-soft);font-weight:600;padding:7px 11px}
+.chip[aria-pressed="true"] .bx{background:var(--water);border-color:var(--water)}
+.chbox .foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border-top:1px solid var(--line);padding:14px 0 calc(4px + env(safe-area-inset-bottom,0px));position:sticky;bottom:0;background:var(--surface);z-index:2}
+.chbox .foot .res{flex:1 1 220px;font-size:14px;color:var(--muted)}
+@media (max-width:760px){.chbox .foot .res{flex-basis:100%}.chbox .foot .btn{flex:1 1 120px}.chbox .foot #chOk{flex-grow:2}}
+.btn.big{padding:12px 18px;font-size:15px}
 @media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.two,.form{grid-template-columns:1fr}}
+@media (min-width:761px) and (max-width:980px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .4s ease}}
 </style><style>
 .login{max-width:420px;margin:40px auto 0;width:100%}
@@ -219,6 +246,16 @@ tr:last-child td{border-bottom:0}
   <div id="vApp" hidden style="display:contents">
   <!-- PAINEL -->
   <section id="v-painel" class="sec" style="gap:24px">
+    <div class="actions" id="chAct" hidden style="justify-content:flex-end;margin-bottom:-12px">
+      <button class="btn" type="button" id="bChuva" style="display:flex;align-items:center;gap:8px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15.5a4.5 4.5 0 0 0-3.2-7.7 6 6 0 0 0-11.5 2A4 4 0 0 0 6 17.5h11"/><path d="M8 20l1-2M12 22l1-2M16 20l1-2"/></svg>Informar chuva</button>
+    </div>
+    <section class="chbox" id="chBox" hidden aria-label="Informar chuva">
+      <div class="sec-head"><h2>Informar chuva</h2><span class="note">Toque nos pontos onde choveu e confirme. Cada ponto marcado fica dispensado de molhagem por 12 horas.</span></div>
+      <div class="top"><button class="btn small ghost" type="button" id="chTodos">Choveu em todos</button><button class="btn small ghost" type="button" id="chLimpar">Limpar seleção</button></div>
+      <div id="chGrupos" style="display:flex;flex-direction:column;gap:16px"></div>
+      <div class="foot"><span class="res" id="chRes" role="status"></span><button class="btn ghost big" type="button" id="chCancel">Cancelar</button><button class="btn big" type="button" id="chOk" disabled>Confirmar chuva</button></div>
+    </section>
+    <div class="chuvas" id="chuvas" hidden></div>
     <div class="alertas" id="alerta" hidden></div>
     <div class="kpis" id="kpis"></div>
     <div class="sec" id="secTraj">
@@ -226,7 +263,7 @@ tr:last-child td{border-bottom:0}
       <div class="grid" id="trips"></div>
     </div>
     <div class="sec">
-      <div class="sec-head"><h2>Pontos de molhagem</h2><span class="note">Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido.</span><span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small ghost" type="button" id="bPdfPainel">PDF do painel</button><button class="btn small ghost" type="button" id="bPdf">Exportar PDF</button></span></div>
+      <div class="sec-head"><h2>Pontos de molhagem</h2><span class="note">Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido · azul: dispensado por chuva.</span><span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small ghost" type="button" id="bPdfPainel">PDF do painel</button><button class="btn small ghost" type="button" id="bPdf">Exportar PDF</button></span></div>
       <div class="grid" id="cards"></div>
     </div>
     <div class="sec">
@@ -271,6 +308,8 @@ tr:last-child td{border-bottom:0}
       <label>Período<select id="hPeriodo"><option value="1">Últimas 24 h</option><option value="7" selected>Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="60">Últimos 60 dias</option><option value="180">Últimos 6 meses</option><option value="365">Último ano</option></select></label>
     </div>
     <div class="tablebox"><table id="hTable"></table></div>
+    <div class="sec-head" style="margin-top:12px"><h2>Chuvas informadas</h2><span class="note" id="hcCount"></span></div>
+    <div class="tablebox"><table id="hcTable"></table></div>
   </section>
 
   <!-- CADASTROS -->
@@ -348,6 +387,8 @@ const ERROS={
   FROTA_EM_TRAJETO:"Essa frota já está em trajeto. Confirme a chegada ou cancele o trajeto atual antes.",
   TRAJETO_ENCERRADO:"Esse trajeto já foi encerrado. Atualize a página.",
   CHEGADA_INVALIDA:"O horário da chegada precisa ser depois da saída e não pode estar no futuro.",
+  CHUVA_SEM_PONTOS:"Marque pelo menos um ponto onde choveu.",
+  CHUVA_ENCERRADA:"Essa dispensa por chuva já terminou. Atualize a página.",
   REDE:"Sem conexão com o servidor. Verifique a internet e tente de novo."
 };
 const msgErr=e=>(ERROS[e&&e.message]||("Erro: "+(e&&e.message||"desconhecido")))+(e&&e.message==="FORA_HORARIO"&&e.detail?" Horário liberado: "+e.detail+".":"");
@@ -356,7 +397,9 @@ const URL_=String(window.SUPABASE_URL||"").trim().replace(/\/+$/,"");
 const KEY=String(window.SUPABASE_KEY||"").trim();
 
 let token=store.get("molh_token"),perfil=null,timer=null,dias=60,usuarios=[];
-const S={pontos:[],frotas:[],mol:[],traj:[]};
+const S={pontos:[],frotas:[],mol:[],traj:[],chuvas:[]};
+const CHUVA_HORAS=12; // dispensa após informar chuva (definida no banco, em molh_informar_chuva)
+let chAberto=false; const chSel=new Set();
 
 async function rpc(fn,args){
   const h={"Content-Type":"application/json","apikey":KEY};
@@ -400,21 +443,38 @@ function pointInfo(p,now){
   const last=list[0]; const interval=Number(p.intervalo_min)||360;
   let avg=null;
   if(list.length>=3){const ts=list.slice(0,11).map(m=>+new Date(m.quando));let s=0;for(let i=0;i<ts.length-1;i++)s+=ts[i]-ts[i+1];avg=s/(ts.length-1)/6e4;}
+  const lt=last?new Date(last.quando):null;
+  const ch=chuvaDoPonto(p.id,now,lt);
+  // chuva informada depois da última molhagem: ponto dispensado até o fim da dispensa
+  if(ch&&ch.ate>now){const tot=ch.ate-ch.ini;
+    return{p,last:last||null,lt,el:lt?(now-lt)/6e4:null,next:ch.ate,interval,avg,ratio:tot>0?(now-ch.ini)/tot:1,status:"chuva",chuva:ch};}
   if(!last)return{p,last:null,interval,avg,status:"none",ratio:0};
-  const lt=new Date(last.quando); const el=(now-lt)/6e4; const next=new Date(+lt+interval*6e4);
-  const ratio=el/interval; const falta=interval-el; const status=falta<=0?"late":falta<=AVISO_MIN?"warn":"ok";
-  return{p,last,lt,el,next,interval,avg,ratio,status};
+  const el=(now-lt)/6e4; let next=new Date(+lt+interval*6e4);
+  if(ch&&ch.ate>next)next=ch.ate; // depois da dispensa, o prazo conta a partir do fim dela
+  const falta=(next-now)/6e4; const ratio=1-falta/interval; const status=falta<=0?"late":falta<=AVISO_MIN?"warn":"ok";
+  return{p,last,lt,el,next,interval,avg,ratio,status,chuva:ch};
 }
+// chuva mais recente que cobre o ponto e foi informada depois da última molhagem
+function chuvaDoPonto(pid,now,depoisDe){let best=null;
+  for(const c of S.chuvas){if(!(c.pontos||[]).some(x=>String(x)===String(pid)))continue;
+    const ini=new Date(c.informada_em),ate=new Date(c.dispensa_ate);
+    if(ini>now||(depoisDe&&ini<depoisDe))continue;
+    if(!best||ate>best.ate)best={c,ini,ate};}
+  return best;}
+const chuvasAtivas=now=>S.chuvas.filter(c=>new Date(c.dispensa_ate)>now&&new Date(c.informada_em)<=now);
+const ordemPainel=(a,b)=>((a.status==="chuva")-(b.status==="chuva"))||(b.ratio-a.ratio);
 const AVISO_MIN=60; // minutos antes do vencimento em que o ponto passa para "Molhar em breve"
-const ST={ok:"Em dia",warn:"Molhar em breve",late:"Atrasado",none:"Sem registro"};
+const ST={ok:"Em dia",warn:"Molhar em breve",late:"Atrasado",none:"Sem registro",chuva:"Dispensado · chuva"};
 
 /* ---------- render ---------- */
 function renderPainel(){
   const now=new Date();
   const todos=emOperacao().map(p=>pointInfo(p,now));
   const semReg=todos.filter(i=>i.status==="none").length;
-  const infos=todos.filter(i=>i.status!=="none").sort((a,b)=>b.ratio-a.ratio); // sem registro não aparece no painel
+  const infos=todos.filter(i=>i.status!=="none").sort(ordemPainel); // sem registro não aparece no painel
   const late=infos.filter(i=>i.status==="late").length, warn=infos.filter(i=>i.status==="warn").length;
+  const nChuva=infos.filter(i=>i.status==="chuva").length;
+  $("#chAct").hidden=!canReg()||chAberto; renderChRes(); renderChuvas(now);
   { const atr=infos.filter(i=>i.status==="late"), br=infos.filter(i=>i.status==="warn").sort((a,b)=>a.next-b.next);
     const al=$("#alerta"); const linhas=[];
     if(atr.length)linhas.push(`<div class="alerta late"><b class="t">${atr.length===1?"1 ponto atrasado":atr.length+" pontos atrasados"}</b><span>${atr.map(i=>`${esc(i.p.nome)} (atrasado ${fmtDur((now-i.next)/6e4)})`).join(" · ")}</span></div>`);
@@ -425,6 +485,7 @@ function renderPainel(){
   $("#kpis").innerHTML=
     `<div class="kpi ${late?"late":""}"><div class="lbl">Atrasados</div><div class="val">${late}<small> de ${infos.length}</small></div></div>`+
     `<div class="kpi ${warn?"warn":""}"><div class="lbl">Molhar em breve</div><div class="val">${warn}</div></div>`+
+    `<div class="kpi ${nChuva?"chuva":""}"><div class="lbl">Dispensados por chuva</div><div class="val">${nChuva}</div></div>`+
     `<div class="kpi"><div class="lbl">Molhagens em 24 h</div><div class="val">${d24.length}</div></div>`+
     "";
   $("#kpis").innerHTML=$("#kpis").innerHTML.replace(/(<div class="kpi"><div class="lbl">Molhagens)/,`<div class="kpi"><div class="lbl">Frotas em trajeto</div><div class="val">${ativos.length}</div></div>$1`);
@@ -436,19 +497,22 @@ function renderPainel(){
     const p=i.p; const fr=i.last?byId(S.frotas,i.last.frota_id):null;
     const w=Math.min(100,(i.ratio||0)*100);
     let prev="";
-    if(i.last){const left=(i.next-now)/6e4;
+    if(i.status==="chuva"){const left=(i.next-now)/6e4;
+      prev=`<b style="color:var(--water)">Dispensado até ${whenLabel(i.next)}</b> <span style="color:var(--muted)">(em ${fmtDur(left)})</span>`;}
+    else if(i.last){const left=(i.next-now)/6e4;
       prev=left>=0?`${whenLabel(i.next)} <span style="color:var(--muted)">(em ${fmtDur(left)})</span>`:`<b style="color:var(--late)">${whenLabel(i.next)} · atrasada ${fmtDur(-left)}</b>`;}
     return `<article class="card st-${i.status}">
       <div class="card-top"><div class="t"><h3>${esc(p.nome)}</h3>
         <div class="sub">${esc([p.trecho,p.km].filter(Boolean).join(" · "))||"&nbsp;"}</div></div>
         <span class="pill ${i.status}">${ST[i.status]}</span></div>
       ${ativos.filter(t=>t.destino_id===p.id).map(t=>{const f=byId(S.frotas,t.frota_id);return `<div class="otw">A caminho: ${esc(f?f.prefixo:"frota")} · saiu há ${fmtDur((now-new Date(t.saida))/6e4)}</div>`;}).join("")}
+      ${i.status==="chuva"?`<div class="otw">Chuva informada ${whenLabel(i.chuva.ini)}${i.chuva.c.lancado_por?` por ${esc(i.chuva.c.lancado_por)}`:""}</div>`:""}
       ${i.last?`<div class="elapsed"><span class="big">${fmtDur(i.el)}</span><span class="cap">desde a última molhagem</span></div>
       <div class="bar ${i.status}" role="img" aria-label="${Math.round(w)}% do intervalo"><i style="width:${w}%"></i></div>`
       :`<div class="elapsed"><span class="big">—</span><span class="cap">nenhuma molhagem registrada</span></div><div class="bar"><i style="width:0"></i></div>`}
       <dl class="facts">
         <dt>Última</dt><dd>${i.last?`${whenLabel(i.lt)} · ${esc(fr?fr.prefixo:"frota removida")}`:"—"}</dd>
-        <dt>Próxima prevista</dt><dd>${i.last?prev:"assim que possível"}</dd>
+        <dt>Próxima prevista</dt><dd>${prev||"assim que possível"}</dd>
         <dt>Intervalo</dt><dd>${fmtDur(i.interval)}${i.avg?` <span style="color:var(--muted)">· real médio ${fmtDur(i.avg)}</span>`:""}</dd>
       </dl>
       ${reg?`<div class="actions"><button class="btn small" data-reg="${p.id}">Registrar molhagem aqui</button></div>`:""}
@@ -460,6 +524,45 @@ function renderPainel(){
   $("#fleetTable").innerHTML=`<thead><tr><th>Frota</th><th class="num">Molhagens</th><th>Última molhagem</th><th>Onde</th></tr></thead><tbody>`+
     (rows.length?rows.map(r=>`<tr><td><b>${esc(r.f.prefixo)}</b> <span style="color:var(--muted)">${esc(r.f.descricao||"")}</span></td><td class="num">${r.n}</td><td class="mono">${r.last?whenLabel(new Date(r.last.quando)):"—"}</td><td>${r.lp?esc(r.lp.nome):"—"}</td></tr>`).join("")
     :`<tr><td colspan="4" style="color:var(--muted)">Nenhuma frota cadastrada.</td></tr>`)+"</tbody>";
+}
+
+/* ---------- chuva ---------- */
+const ICONE_CHUVA=`<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15.5a4.5 4.5 0 0 0-3.2-7.7 6 6 0 0 0-11.5 2A4 4 0 0 0 6 17.5h11"/><path d="M8 20l1-2M12 22l1-2M16 20l1-2"/></svg>`;
+const nomesPontos=ids=>ids.map(id=>byId(S.pontos,id)).filter(Boolean).map(p=>p.nome);
+function renderChuvas(now){
+  const box=$("#chuvas"),at=chuvasAtivas(now),reg=canReg();
+  box.hidden=!at.length;
+  box.innerHTML=at.map(c=>{const ate=new Date(c.dispensa_ate),ini=new Date(c.informada_em),nomes=nomesPontos(c.pontos||[]);
+    return `<div class="chuva-ativa"><span class="ic">${ICONE_CHUVA}</span>
+      <div class="tx"><b>Chuva informada · ${nomes.length===1?"1 ponto dispensado":nomes.length+" pontos dispensados"} até ${whenLabel(ate)}</b>
+      <span>Informada ${whenLabel(ini)}${c.lancado_por?" por "+esc(c.lancado_por):""} · faltam ${fmtDur((ate-now)/6e4)} · ${esc(nomes.join(", "))}</span></div>
+      ${reg?`<button class="btn small ghost" type="button" data-chend="${c.id}">Encerrar dispensa</button>`:""}</div>`;}).join("");
+}
+function gruposChuva(){const g=new Map();
+  emOperacao().forEach(p=>{const k=(p.trecho||"").trim()||"Sem trecho definido";if(!g.has(k))g.set(k,[]);g.get(k).push(p);});
+  return [...g.entries()].sort((a,b)=>(a[0]==="Sem trecho definido")-(b[0]==="Sem trecho definido")||a[0].localeCompare(b[0],"pt-BR"));}
+function renderChBox(){
+  const box=$("#chBox");box.hidden=!chAberto;$("#chAct").hidden=!canReg()||chAberto;if(!chAberto)return;
+  const now=new Date();
+  $("#chGrupos").innerHTML=gruposChuva().map(([nome,ps],gi)=>{const n=ps.filter(p=>chSel.has(p.id)).length,cheio=n===ps.length;
+    return `<div class="chgrp"><div class="chgrp-h"><h3>${esc(nome)} <span>· ${n} de ${ps.length}</span></h3>
+      <button class="btn small ghost" type="button" data-chg="${gi}">${cheio?"Desmarcar trecho":"Marcar trecho"}</button></div>
+      <div class="chips">${ps.map(p=>{const on=chSel.has(p.id),i=pointInfo(p,now);
+        return `<button class="chip" type="button" aria-pressed="${on}" data-chp="${p.id}"><span class="bx">${on?'<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':""}</span>
+          <span>${esc(p.nome)}${i.status==="chuva"?`<span style="display:block;font-size:12px;font-weight:400;color:var(--water)">já dispensado até ${fmtHM(i.next)}</span>`:""}</span></button>`;}).join("")}</div></div>`;}).join("");
+  renderChRes();
+}
+function renderChRes(){if(!chAberto)return;
+  const n=chSel.size,ate=new Date(Date.now()+CHUVA_HORAS*36e5);
+  $("#chRes").textContent=n?`${n===1?"1 ponto fica dispensado":n+" pontos ficam dispensados"} por ${CHUVA_HORAS} h, até ${whenLabel(ate)}.`:"Marque os pontos onde choveu.";
+  const b=$("#chOk");b.disabled=!n;b.textContent=n?`Confirmar chuva em ${n} ${n===1?"ponto":"pontos"}`:"Confirmar chuva";
+}
+function abrirChuva(abrir){chAberto=abrir;chSel.clear();renderChBox();if(abrir)$("#chBox").scrollIntoView({block:"start",behavior:"smooth"});}
+async function confirmarChuva(){
+  const ids=[...chSel];if(!ids.length)return;const b=$("#chOk");b.disabled=true;b.textContent="Salvando…";
+  try{await rpc("molh_informar_chuva",{p_token:token,p_pontos:ids,p_obs:""});
+    chAberto=false;chSel.clear();renderChBox();await carregar();}
+  catch(err){$("#chRes").textContent=msgErr(err);b.disabled=false;b.textContent="Tentar de novo";}
 }
 
 /* ---------- relatório em PDF ---------- */
@@ -479,8 +582,8 @@ async function exportarPdf(){
     const ativos=S.traj.filter(t=>t.status==="em_trajeto");
     const d24=S.mol.filter(m=>now-new Date(m.quando)<864e5);
     const nLate=infos.filter(i=>i.status==="late"||i.status==="none").length, nWarn=infos.filter(i=>i.status==="warn").length;
-    const nOk=infos.filter(i=>i.status==="ok").length;
-    const COR={ok:[30,132,73],warn:[183,121,0],late:[192,41,41],none:[192,41,41]};
+    const nOk=infos.filter(i=>i.status==="ok").length, nChuva=infos.filter(i=>i.status==="chuva").length;
+    const COR={ok:[30,132,73],warn:[183,121,0],late:[192,41,41],none:[192,41,41],chuva:[31,111,209]};
     const head={fillColor:[22,38,61],textColor:255,fontStyle:"bold"};
 
     doc.setFillColor(22,38,61);doc.rect(0,0,PW,20,"F");
@@ -490,12 +593,12 @@ async function exportarPdf(){
     doc.setTextColor(30);
 
     // resumo
-    const kp=[["Pontos em operação",infos.length],["Atrasados / sem registro",nLate],["Molhar na próxima hora",nWarn],["Em dia",nOk],["Frotas em trajeto",ativos.length],["Molhagens em 24 h",d24.length]];
-    const bw=(PW-2*M-5*4)/6; kp.forEach(([l,v],k)=>{const x=M+k*(bw+4);
+    const kp=[["Pontos em operação",infos.length],["Atrasados / sem registro",nLate],["Molhar na próxima hora",nWarn],["Em dia",nOk],["Dispensados por chuva",nChuva],["Frotas em trajeto",ativos.length],["Molhagens em 24 h",d24.length]];
+    const bw=(PW-2*M-(kp.length-1)*4)/kp.length; kp.forEach(([l,v],k)=>{const x=M+k*(bw+4);
       doc.setDrawColor(210);doc.roundedRect(x,25,bw,16,2,2,"S");
-      doc.setFontSize(8);doc.setTextColor(110);doc.text(l,x+3,30);
+      doc.setFontSize(7);doc.setTextColor(110);doc.text(l,x+3,30);
       doc.setFontSize(14);doc.setFont("helvetica","bold");
-      doc.setTextColor(...(k===1&&v?COR.late:k===2&&v?COR.warn:[30,30,30]));doc.text(String(v),x+3,38);
+      doc.setTextColor(...(k===1&&v?COR.late:k===2&&v?COR.warn:k===4&&v?COR.chuva:[30,30,30]));doc.text(String(v),x+3,38);
       doc.setFont("helvetica","normal");doc.setTextColor(30);});
 
     // pontos
@@ -504,14 +607,25 @@ async function exportarPdf(){
       head:[["Ponto","Trecho / km","Situação","Última molhagem","Frota","Próxima prevista","Tempo restante","Intervalo"]],
       body:infos.map(i=>{const p=i.p,fr=i.last?byId(S.frotas,i.last.frota_id):null;
         let rest="Molhar assim que possível";
-        if(i.last){const left=(i.next-now)/6e4;rest=left>=0?"em "+fmtDur(left):"atrasado "+fmtDur(-left);}
-        return[p.nome,[p.trecho,p.km].filter(Boolean).join(" · ")||"-",ST[i.status],
-          i.last?fmtDH(i.lt):"-",i.last?(fr?fr.prefixo:"removida"):"-",i.last?fmtDH(i.next):"-",rest,fmtDur(i.interval)];}),
+        if(i.status==="chuva")rest="chuva: dispensado por "+fmtDur((i.next-now)/6e4);
+        else if(i.last){const left=(i.next-now)/6e4;rest=left>=0?"em "+fmtDur(left):"atrasado "+fmtDur(-left);}
+        return[p.nome,[p.trecho,p.km].filter(Boolean).join(" · ")||"-",ST[i.status].replace(" · "," - "),
+          i.last?fmtDH(i.lt):"-",i.last?(fr?fr.prefixo:"removida"):"-",i.next?fmtDH(i.next):"-",rest,fmtDur(i.interval)];}),
       didParseCell:d=>{if(d.section==="body"&&(d.column.index===2||d.column.index===6)){const st=infos[d.row.index].status;
         d.cell.styles.textColor=COR[st];d.cell.styles.fontStyle="bold";}}});
 
-    // trajetos
+    // chuvas informadas (justificativa dos pontos dispensados)
     let y=doc.lastAutoTable.finalY+8; if(y>175){doc.addPage();y=16;}
+    const ch24=S.chuvas.filter(c=>new Date(c.dispensa_ate)>now-864e5);
+    doc.setFontSize(12);doc.setFont("helvetica","bold");doc.setTextColor(30);doc.text("Chuvas informadas - últimas 24 horas",M,y);
+    doc.autoTable({startY:y+3,margin:{left:M,right:M},headStyles:head,styles:{fontSize:8.5,cellPadding:2},
+      head:[["Informada","Dispensa até","Situação","Lançado por","Pontos"]],columnStyles:{4:{cellWidth:120}},
+      body:ch24.length?ch24.map(c=>{const ate=new Date(c.dispensa_ate);
+        return[fmtDH(new Date(c.informada_em)),fmtDH(ate),ate>now?"Ativa":c.encerrado_em?"Encerrada antes por "+(c.encerrado_por||"-"):"Concluída",c.lancado_por||"-",nomesPontos(c.pontos||[]).join(", ")];})
+        :[[{content:"Nenhuma chuva informada nas últimas 24 horas.",colSpan:5,styles:{textColor:120}}]]});
+
+    // trajetos
+    y=doc.lastAutoTable.finalY+8; if(y>175){doc.addPage();y=16;}
     doc.setFontSize(12);doc.setFont("helvetica","bold");doc.setTextColor(30);doc.text("Frotas em trajeto",M,y);
     doc.autoTable({startY:y+3,margin:{left:M,right:M},headStyles:head,styles:{fontSize:8.5,cellPadding:2},
       head:[["Frota","Saiu de","Destino","Saída","Há quanto tempo","Motorista"]],
@@ -556,12 +670,12 @@ async function exportarPainelPdf(){
     const now=new Date(), PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight(), M=10;
     const dataHora=pad(now.getDate())+"/"+pad(now.getMonth()+1)+"/"+now.getFullYear()+" "+fmtHM(now);
     // mais urgente primeiro; sem registro por último
-    const infos=emOperacao().map(p=>pointInfo(p,now)).filter(i=>i.status!=="none").sort((a,b)=>b.ratio-a.ratio);
+    const infos=emOperacao().map(p=>pointInfo(p,now)).filter(i=>i.status!=="none").sort(ordemPainel);
     const ativos=S.traj.filter(t=>t.status==="em_trajeto");
-    const C={ok:[31,138,76],warn:[201,138,18],late:[194,58,58],none:[90,106,128]};
-    const SOFT={ok:[220,242,228],warn:[251,239,214],late:[248,221,221],none:[232,237,243]};
-    const BG={ok:[255,255,255],warn:[253,248,237],late:[252,240,240],none:[255,255,255]};
-    const BORDER={ok:[140,192,160],warn:C.warn,late:C.late,none:[214,222,232]};
+    const C={ok:[31,138,76],warn:[201,138,18],late:[194,58,58],none:[90,106,128],chuva:[31,111,209]};
+    const SOFT={ok:[220,242,228],warn:[251,239,214],late:[248,221,221],none:[232,237,243],chuva:[219,233,250]};
+    const BG={ok:[255,255,255],warn:[253,248,237],late:[252,240,240],none:[255,255,255],chuva:[242,247,254]};
+    const BORDER={ok:[140,192,160],warn:C.warn,late:C.late,none:[214,222,232],chuva:[150,190,236]};
     const INK=[20,32,48],MUTED=[90,106,128],BLUE=[31,111,209];
     const cols=3,gap=4,cw=(PW-2*M-gap*(cols-1))/cols,P=3.5,LXo=18.5;
     const cab=(primeira)=>{
@@ -575,9 +689,10 @@ async function exportarPainelPdf(){
     const altura=i=>{const p=i.p,w=cw-2*P,LW=cw-2*P-LXo;doc.setFont("helvetica","bold");doc.setFontSize(8.5);
       let h=6.5+Math.min(2,doc.splitTextToSize(p.nome.toUpperCase(),w).length)*3.6+0.6+4.2;
       if(S.traj.some(t=>t.status==="em_trajeto"&&t.destino_id===p.id))h+=3.4;
+      if(i.status==="chuva")h+=3.4;
       h+=3.2+2.4+5.6;doc.setFontSize(6.5);
       const vs=[i.last?whenLabel(i.lt)+" · 000000000":"-",null,fmtDur(i.interval)+(i.avg?" · real médio "+fmtDur(i.avg):"")];
-      vs.forEach((v,n)=>{let two;if(n===1)two=!!(i.last&&i.next<now);else{doc.setFont("helvetica","normal");two=doc.splitTextToSize(v,LW).length>1;}h+=two?6.6:3.8;});
+      vs.forEach((v,n)=>{let two;if(n===1)two=i.status==="chuva"||!!(i.last&&i.next<now);else{doc.setFont("helvetica","normal");two=doc.splitTextToSize(v,LW).length>1;}h+=two?6.6:3.8;});
       return h+0.8;};
     const alt=infos.map(altura);
     let y0=cab(true),k=0;
@@ -607,9 +722,27 @@ async function exportarPainelPdf(){
       });
       y0+=Math.max(...altT.slice(Math.floor((trips.length-1)/cols)*cols))+6;
     }
+    // chuva informada (dispensa ativa)
+    const chAt=chuvasAtivas(now);
+    if(chAt.length){
+      if(y0+30>PH-11){doc.addPage();y0=cab(false);}
+      y0=secao(y0,"CHUVA INFORMADA ("+chAt.length+")","Pontos marcados pelo operador ficam dispensados de molhagem por "+CHUVA_HORAS+" horas a partir do informativo.");
+      chAt.forEach(c=>{const ate=new Date(c.dispensa_ate),nomes=nomesPontos(c.pontos||[]);
+        doc.setFont("helvetica","normal");doc.setFontSize(7);
+        const linhas=doc.splitTextToSize("Pontos: "+nomes.join(", "),PW-2*M-2*P);
+        const h=10+linhas.length*3.2;
+        if(y0+h>PH-11){doc.addPage();y0=cab(false);}
+        doc.setFillColor(242,247,254);doc.setDrawColor(150,190,236);doc.setLineWidth(0.3);doc.roundedRect(M,y0,PW-2*M,h,2,2,"FD");
+        doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(...BLUE);
+        doc.text((nomes.length===1?"1 ponto dispensado":nomes.length+" pontos dispensados")+" até "+whenLabel(ate)+" · informada "+whenLabel(new Date(c.informada_em))+(c.lancado_por?" por "+c.lancado_por:""),M+P,y0+5.5);
+        doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...INK);
+        linhas.forEach((ln,n)=>doc.text(ln,M+P,y0+9.5+n*3.2));
+        y0+=h+3;});
+      y0+=3;
+    }
     // pontos
     if(y0+40>PH-11){doc.addPage();y0=cab(false);}
-    y0=secao(y0,"PONTOS DE MOLHAGEM","Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido.");
+    y0=secao(y0,"PONTOS DE MOLHAGEM","Ordenados pelo mais urgente. Previsão = última molhagem + intervalo. Verde: em dia · amarelo: vence em até 1 hora · vermelho: vencido · azul: dispensado por chuva.");
     if(!infos.length){doc.setFontSize(10);doc.setTextColor(...MUTED);doc.text("Nenhum ponto cadastrado.",M,y0+8);}
     infos.forEach(i=>{
       const col=k%cols,ch=Math.max(...alt.slice(k-col,k-col+cols)); if(col===0&&k>0)y0+=Math.max(...alt.slice(k-cols,k))+gap;
@@ -631,6 +764,8 @@ async function exportarPainelPdf(){
       const tj=ativos.filter(t=>t.destino_id===p.id);
       if(tj.length){const f=byId(S.frotas,tj[0].frota_id);doc.setFont("helvetica","bold");doc.setFontSize(6);doc.setTextColor(...BLUE);
         doc.text(doc.splitTextToSize("A caminho: "+(f?f.prefixo:"frota")+" · saiu há "+fmtDur((now-new Date(tj[0].saida))/6e4)+(tj.length>1?" (+"+(tj.length-1)+")":""),w)[0],x+P,yy);yy+=3.4;}
+      if(st==="chuva"){doc.setFont("helvetica","bold");doc.setFontSize(6);doc.setTextColor(...BLUE);
+        doc.text(doc.splitTextToSize("Chuva informada "+whenLabel(i.chuva.ini)+(i.chuva.c.lancado_por?" por "+i.chuva.c.lancado_por:""),w)[0],x+P,yy);yy+=3.4;}
       // tempo desde a última
       yy+=3.2;
       doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(...(st==="none"?INK:C[st]));
@@ -644,12 +779,13 @@ async function exportarPainelPdf(){
       // fatos
       const fr=i.last?byId(S.frotas,i.last.frota_id):null;
       let prox="assim que possível",late=false;
-      if(i.last){const left=(i.next-now)/6e4;late=left<0;prox=late?[whenLabel(i.next),"atrasada "+fmtDur(-left)]:whenLabel(i.next)+" (em "+fmtDur(left)+")";}
+      if(st==="chuva"){prox=["Dispensado (chuva)","até "+whenLabel(i.next)];late="chuva";}
+      else if(i.last){const left=(i.next-now)/6e4;late=left<0?"late":false;prox=late?[whenLabel(i.next),"atrasada "+fmtDur(-left)]:whenLabel(i.next)+" (em "+fmtDur(left)+")";}
       const fatos=[["Última",i.last?whenLabel(i.lt)+" · "+(fr?fr.prefixo:"frota removida"):"-",false],
         ["Próxima prevista",prox,late],["Intervalo",fmtDur(i.interval)+(i.avg?" · real médio "+fmtDur(i.avg):""),false]];
       const LX=x+P+LXo,LW=x+cw-P-LX;
       fatos.forEach(([l,v,dest])=>{doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(...MUTED);doc.text(l,x+P,yy);
-        doc.setFont("helvetica",dest?"bold":"normal");doc.setTextColor(...(dest?C.late:INK));
+        doc.setFont("helvetica",dest?"bold":"normal");doc.setTextColor(...(dest?C[dest]:INK));
         const ls=(Array.isArray(v)?v:doc.splitTextToSize(v,LW)).slice(0,2);ls.forEach((ln,n)=>doc.text(ln,LX,yy+n*3));
         yy+=ls.length>1?6.6:3.8;});
     });
@@ -721,6 +857,16 @@ function renderHistorico(){
     (list.length?list.map(m=>{const p=byId(S.pontos,m.ponto_id),f=byId(S.frotas,m.frota_id);const g=gap(m);
       return `<tr><td class="mono">${fmtDH(new Date(m.quando))}</td><td>${esc(p?p.nome:"(removido)")}</td><td>${esc(f?f.prefixo:"(removida)")}</td><td class="num">${m.saida?`${fmtDur((new Date(m.quando)-new Date(m.saida))/6e4)} <span style="color:var(--muted)">de ${esc(m.origem||"")}</span>`:"—"}</td><td class="num">${g==null?"—":fmtDur(g)}</td><td>${esc(m.motorista||"—")}</td><td style="white-space:normal;min-width:160px">${esc(m.obs||"")}</td><td>${esc(m.lancado_por||"—")}</td><td>${canDelMol(m)?`<button class="btn danger small" data-del="mol:${m.id}">Excluir</button>`:""}</td></tr>`;}).join("")
     :`<tr><td colspan="9" style="color:var(--muted)">Nenhuma molhagem no filtro escolhido.</td></tr>`)+"</tbody>";
+  // chuvas informadas no período (filtra pelo ponto, se escolhido)
+  const nowD=new Date();
+  const chs=S.chuvas.filter(c=>(now-new Date(c.informada_em)<d*864e5)&&(!pp||(c.pontos||[]).some(x=>String(x)===pp)));
+  const podeDelCh=c=>canAdmin()||(canReg()&&String(c.criado_por)===String(perfil.id));
+  $("#hcCount").textContent=`${chs.length} informativo${chs.length===1?"":"s"}`;
+  $("#hcTable").innerHTML=`<thead><tr><th>Informada</th><th>Dispensa até</th><th>Situação</th><th>Pontos</th><th>Lançado por</th><th></th></tr></thead><tbody>`+
+    (chs.length?chs.map(c=>{const ate=new Date(c.dispensa_ate);
+      const sit=ate>nowD?'<span class="pill chuva">Ativa</span>':c.encerrado_em?`Encerrada antes${c.encerrado_por?" por "+esc(c.encerrado_por):""}`:"Concluída";
+      return `<tr><td class="mono">${fmtDH(new Date(c.informada_em))}</td><td class="mono">${fmtDH(ate)}</td><td>${sit}</td><td style="white-space:normal;min-width:220px">${esc(nomesPontos(c.pontos||[]).join(", "))}</td><td>${esc(c.lancado_por||"—")}</td><td>${podeDelCh(c)?`<button class="btn danger small" data-del="chuva:${c.id}">Excluir</button>`:""}</td></tr>`;}).join("")
+    :`<tr><td colspan="6" style="color:var(--muted)">Nenhuma chuva informada no filtro escolhido.</td></tr>`)+"</tbody>";
 }
 
 let editando=null; // {tipo:"ponto"|"frota", id}
@@ -801,7 +947,7 @@ async function carregar(){
   const r=await rpc("molh_dados",{p_token:token,p_dias:dias});
   perfil=r.perfil;
   const abc=(x,y)=>String(x||"").localeCompare(String(y||""),"pt-BR",{numeric:true,sensitivity:"base"});
-  S.pontos=(r.pontos||[]).sort((a,b)=>abc(a.nome,b.nome));S.frotas=(r.frotas||[]).sort((a,b)=>abc(a.prefixo,b.prefixo));S.mol=r.molhagens||[];S.traj=r.trajetos||[];
+  S.pontos=(r.pontos||[]).sort((a,b)=>abc(a.nome,b.nome));S.frotas=(r.frotas||[]).sort((a,b)=>abc(a.prefixo,b.prefixo));S.mol=r.molhagens||[];S.traj=r.trajetos||[];S.chuvas=r.chuvas||[];
   renderAll(); banner("");
 }
 async function carregarUsuarios(){if(!canAdmin())return;try{usuarios=await rpc("molh_usuarios_lista",{p_token:token})||[];renderUsuarios();}catch(e){setMsg("#uMsg",msgErr(e),true);}}
@@ -942,6 +1088,21 @@ document.addEventListener("click",async e=>{
       setMsg("#pMsg",pausar==="1"?`${p?p.nome:"Ponto"} em stand-by: saiu do painel e dos PDFs. O histórico continua guardado.`:`${p?p.nome:"Ponto"} reativado e de volta ao painel.`);await carregar();}
     catch(err){pz.disabled=false;banner(esc(msgErr(err)));}
     return;}
+  // chuva
+  if(e.target.closest("#bChuva")){abrirChuva(true);return;}
+  if(e.target.closest("#chCancel")){abrirChuva(false);return;}
+  if(e.target.closest("#chTodos")){emOperacao().forEach(p=>chSel.add(p.id));renderChBox();return;}
+  if(e.target.closest("#chLimpar")){chSel.clear();renderChBox();return;}
+  if(e.target.closest("#chOk")){confirmarChuva();return;}
+  const cp=e.target.closest("[data-chp]");
+  if(cp){const id=+cp.dataset.chp;chSel.has(id)?chSel.delete(id):chSel.add(id);renderChBox();
+    const el=document.querySelector(`[data-chp="${id}"]`);if(el)el.focus();return;}
+  const cg=e.target.closest("[data-chg]");
+  if(cg){const g=gruposChuva()[+cg.dataset.chg];if(g){const ps=g[1],cheio=ps.every(p=>chSel.has(p.id));ps.forEach(p=>cheio?chSel.delete(p.id):chSel.add(p.id));renderChBox();}return;}
+  const ce=e.target.closest("[data-chend]");
+  if(ce){if(!ce.classList.contains("armed")){ce.classList.add("armed","danger");ce.textContent="Confirmar encerramento?";setTimeout(()=>{if(ce.isConnected){ce.classList.remove("armed","danger");ce.textContent="Encerrar dispensa";}},3500);return;}
+    ce.disabled=true;try{await rpc("molh_encerrar_chuva",{p_token:token,p_id:+ce.dataset.chend});await carregar();}catch(err){ce.disabled=false;banner(esc(msgErr(err)));}
+    return;}
   if(e.target.closest("#bPdf")){exportarPdf();return;}
   if(e.target.closest("#bPdfPainel")){exportarPainelPdf();return;}
   if(e.target.closest("#bNovaSaida")){$("#tSaida").value=toLocalInput(new Date());history.replaceState(null,"","#registrar");aba("registrar");$("#tFrota").focus();return;}
@@ -963,7 +1124,7 @@ document.addEventListener("click",async e=>{
   if(d){
     if(!d.classList.contains("armed")){d.classList.add("armed");d._txt=d.textContent;d.textContent="Confirmar?";setTimeout(()=>{if(d.isConnected){d.classList.remove("armed");d.textContent=d._txt;}},3500);return;}
     const[tipo,id]=d.dataset.del.split(":");d.disabled=true;
-    const fn={mol:"molh_excluir_molhagem",ponto:"molh_remover_ponto",frota:"molh_remover_frota",usu:"molh_excluir_usuario"}[tipo];
+    const fn={mol:"molh_excluir_molhagem",ponto:"molh_remover_ponto",frota:"molh_remover_frota",usu:"molh_excluir_usuario",chuva:"molh_excluir_chuva"}[tipo];
     try{await rpc(fn,{p_token:token,p_id:+id});if(tipo==="usu"){const x=byId(usuarios,+id);setMsg("#uMsg",`Usuário ${x?x.usuario:""} excluído.`);await carregarUsuarios();}else await carregar();}catch(err){d.disabled=false;d.textContent="Falhou";banner(esc(msgErr(err)));}
   }
 });
