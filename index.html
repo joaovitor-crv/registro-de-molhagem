@@ -253,8 +253,8 @@ tr:last-child td{border-bottom:0}
       <button class="btn" type="button" id="bChuva" style="display:flex;align-items:center;gap:8px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15.5a4.5 4.5 0 0 0-3.2-7.7 6 6 0 0 0-11.5 2A4 4 0 0 0 6 17.5h11"/><path d="M8 20l1-2M12 22l1-2M16 20l1-2"/></svg>Informar chuva</button>
     </div>
     <section class="chbox" id="chBox" hidden aria-label="Informar chuva">
-      <div class="sec-head"><h2>Informar chuva</h2><span class="note">Escolha por quanto tempo os pontos ficam dispensados, toque nos pontos onde choveu e confirme.</span></div>
-      <div class="chtempo" role="group" aria-label="Tempo de dispensa"><span class="lbl">Dispensar por</span><button class="chip" type="button" data-chh="6" aria-pressed="false">6 horas</button><button class="chip" type="button" data-chh="12" aria-pressed="true">12 horas</button></div>
+      <div class="sec-head"><h2>Informar chuva</h2><span class="note">Escolha o que a chuva faz nos pontos, toque nos pontos onde choveu e confirme. <b>Zerar horas</b>: conta como uma molhagem agora (o relógio do ponto recomeça). <b>6 ou 12 horas</b>: o ponto fica dispensado por esse tempo.</span></div>
+      <div class="chtempo" role="group" aria-label="Tempo de dispensa"><span class="lbl">Dispensar por</span><button class="chip" type="button" data-chh="0" aria-pressed="false">Zerar horas</button><button class="chip" type="button" data-chh="6" aria-pressed="false">6 horas</button><button class="chip" type="button" data-chh="12" aria-pressed="true">12 horas</button></div>
       <div class="top"><button class="btn small ghost" type="button" id="chTodos">Choveu em todos</button><button class="btn small ghost" type="button" id="chLimpar">Limpar seleção</button></div>
       <div id="chGrupos" style="display:flex;flex-direction:column;gap:16px"></div>
       <div class="foot"><span class="res" id="chRes" role="status"></span><button class="btn ghost big" type="button" id="chCancel">Cancelar</button><button class="btn big" type="button" id="chOk" disabled>Confirmar chuva</button></div>
@@ -403,7 +403,7 @@ const KEY=String(window.SUPABASE_KEY||"").trim();
 
 let token=store.get("molh_token"),perfil=null,timer=null,dias=60,usuarios=[];
 const S={pontos:[],frotas:[],mol:[],traj:[],chuvas:[]};
-const CHUVA_OPCOES=[6,12]; // tempos de dispensa aceitos pelo banco (molh_informar_chuva)
+const CHUVA_OPCOES=[0,6,12]; // 0 = zera o relógio (conta como molhagem); 6/12 = dispensa em horas (molh_informar_chuva)
 let chAberto=false; const chSel=new Set(); let chHoras=12;
 
 async function rpc(fn,args){
@@ -445,7 +445,10 @@ function banner(t){const b=$("#banner");b.innerHTML=t;b.hidden=!t;}
 /* ---------- cálculo por ponto ---------- */
 function pointInfo(p,now){
   const list=S.mol.filter(m=>m.ponto_id===p.id);
-  const last=list[0]; const interval=Number(p.intervalo_min)||360;
+  let last=list[0]; const interval=Number(p.intervalo_min)||360;
+  // chuva "zerar horas" depois da última molhagem: conta como molhagem nesse horário
+  const zr=chuvaZeraPonto(p.id,now,last?new Date(last.quando):null);
+  if(zr)last={quando:zr.informada_em,frota_id:null,chuva:zr};
   let avg=null;
   if(list.length>=3){const ts=list.slice(0,11).map(m=>+new Date(m.quando));let s=0;for(let i=0;i<ts.length-1;i++)s+=ts[i]-ts[i+1];avg=s/(ts.length-1)/6e4;}
   const lt=last?new Date(last.quando):null;
@@ -459,14 +462,20 @@ function pointInfo(p,now){
   const falta=(next-now)/6e4; const ratio=1-falta/interval; const status=falta<=0?"late":falta<=AVISO_MIN?"warn":"ok";
   return{p,last,lt,el,next,interval,avg,ratio,status,chuva:ch};
 }
-// chuva mais recente que cobre o ponto e foi informada depois da última molhagem
+// chuva "zerar horas" mais recente no ponto, informada depois da última molhagem
+function chuvaZeraPonto(pid,now,depoisDe){let best=null;
+  for(const c of S.chuvas){if(!c.zera||!(c.pontos||[]).some(x=>String(x)===String(pid)))continue;
+    const ini=new Date(c.informada_em);if(ini>now||(depoisDe&&ini<=depoisDe))continue;
+    if(!best||ini>new Date(best.informada_em))best=c;}
+  return best;}
+// chuva com dispensa mais recente que cobre o ponto e foi informada depois da última molhagem
 function chuvaDoPonto(pid,now,depoisDe){let best=null;
-  for(const c of S.chuvas){if(!(c.pontos||[]).some(x=>String(x)===String(pid)))continue;
+  for(const c of S.chuvas){if(c.zera||!(c.pontos||[]).some(x=>String(x)===String(pid)))continue;
     const ini=new Date(c.informada_em),ate=new Date(c.dispensa_ate);
     if(ini>now||(depoisDe&&ini<depoisDe))continue;
     if(!best||ate>best.ate)best={c,ini,ate};}
   return best;}
-const chuvasAtivas=now=>S.chuvas.filter(c=>new Date(c.dispensa_ate)>now&&new Date(c.informada_em)<=now);
+const chuvasAtivas=now=>S.chuvas.filter(c=>!c.zera&&new Date(c.dispensa_ate)>now&&new Date(c.informada_em)<=now);
 const ordemPainel=(a,b)=>((a.status==="chuva")-(b.status==="chuva"))||(b.ratio-a.ratio);
 const AVISO_MIN=60; // minutos antes do vencimento em que o ponto passa para "Molhar em breve"
 const ST={ok:"Em dia",warn:"Molhar em breve",late:"Atrasado",none:"Sem registro",chuva:"Dispensado · chuva"};
@@ -512,11 +521,11 @@ function renderPainel(){
         <span class="pill ${i.status}">${ST[i.status]}</span></div>
       ${ativos.filter(t=>t.destino_id===p.id).map(t=>{const f=byId(S.frotas,t.frota_id);return `<div class="otw">A caminho: ${esc(f?f.prefixo:"frota")} · saiu há ${fmtDur((now-new Date(t.saida))/6e4)}</div>`;}).join("")}
       ${i.status==="chuva"?`<div class="otw">Chuva informada ${whenLabel(i.chuva.ini)}${i.chuva.c.lancado_por?` por ${esc(i.chuva.c.lancado_por)}`:""}</div>`:""}
-      ${i.last?`<div class="elapsed"><span class="big">${fmtDur(i.el)}</span><span class="cap">desde a última molhagem</span></div>
+      ${i.last?`<div class="elapsed"><span class="big">${fmtDur(i.el)}</span><span class="cap">${i.last.chuva?"desde a chuva (horas zeradas)":"desde a última molhagem"}</span></div>
       <div class="bar ${i.status}" role="img" aria-label="${Math.round(w)}% do intervalo"><i style="width:${w}%"></i></div>`
       :`<div class="elapsed"><span class="big">—</span><span class="cap">nenhuma molhagem registrada</span></div><div class="bar"><i style="width:0"></i></div>`}
       <dl class="facts">
-        <dt>Última</dt><dd>${i.last?`${whenLabel(i.lt)} · ${esc(fr?fr.prefixo:"frota removida")}`:"—"}</dd>
+        <dt>Última</dt><dd>${i.last?`${whenLabel(i.lt)} · ${i.last.chuva?"chuva (horas zeradas)":esc(fr?fr.prefixo:"frota removida")}`:"—"}</dd>
         <dt>Próxima prevista</dt><dd>${prev||"assim que possível"}</dd>
         <dt>Intervalo</dt><dd>${fmtDur(i.interval)}${i.avg?` <span style="color:var(--muted)">· real médio ${fmtDur(i.avg)}</span>`:""}</dd>
       </dl>
@@ -560,7 +569,9 @@ function renderChBox(){
 function renderChRes(){if(!chAberto)return;
   document.querySelectorAll("[data-chh]").forEach(x=>x.setAttribute("aria-pressed",String(Number(x.dataset.chh)===chHoras)));
   const n=chSel.size,ate=new Date(Date.now()+chHoras*36e5);
-  $("#chRes").textContent=n?`${n===1?"1 ponto fica dispensado":n+" pontos ficam dispensados"} por ${chHoras} h, até ${whenLabel(ate)}.`:`Marque os pontos onde choveu (dispensa de ${chHoras} h).`;
+  $("#chRes").textContent=chHoras===0
+    ?(n?`${n===1?"1 ponto tem":n+" pontos têm"} o relógio zerado: conta como molhagem agora e a próxima vence pelo intervalo normal.`:"Marque os pontos onde choveu (zerar horas).")
+    :(n?`${n===1?"1 ponto fica dispensado":n+" pontos ficam dispensados"} por ${chHoras} h, até ${whenLabel(ate)}.`:`Marque os pontos onde choveu (dispensa de ${chHoras} h).`);
   const b=$("#chOk");b.disabled=!n;b.textContent=n?`Confirmar chuva em ${n} ${n===1?"ponto":"pontos"}`:"Confirmar chuva";
 }
 function abrirChuva(abrir){chAberto=abrir;chSel.clear();chHoras=12;renderChBox();if(abrir)$("#chBox").scrollIntoView({block:"start",behavior:"smooth"});}
@@ -616,18 +627,18 @@ async function exportarPdf(){
         if(i.status==="chuva")rest="chuva: dispensado por "+fmtDur((i.next-now)/6e4);
         else if(i.last){const left=(i.next-now)/6e4;rest=left>=0?"em "+fmtDur(left):"atrasado "+fmtDur(-left);}
         return[p.nome,[p.trecho,p.km].filter(Boolean).join(" · ")||"-",ST[i.status].replace(" · "," - "),
-          i.last?fmtDH(i.lt):"-",i.last?(fr?fr.prefixo:"removida"):"-",i.next?fmtDH(i.next):"-",rest,fmtDur(i.interval)];}),
+          i.last?fmtDH(i.lt):"-",i.last?(i.last.chuva?"chuva (zerado)":fr?fr.prefixo:"removida"):"-",i.next?fmtDH(i.next):"-",rest,fmtDur(i.interval)];}),
       didParseCell:d=>{if(d.section==="body"&&(d.column.index===2||d.column.index===6)){const st=infos[d.row.index].status;
         d.cell.styles.textColor=COR[st];d.cell.styles.fontStyle="bold";}}});
 
     // chuvas informadas (justificativa dos pontos dispensados)
     let y=doc.lastAutoTable.finalY+8; if(y>175){doc.addPage();y=16;}
-    const ch24=S.chuvas.filter(c=>new Date(c.dispensa_ate)>now-864e5);
+    const ch24=S.chuvas.filter(c=>new Date(c.dispensa_ate)>now-864e5||(c.zera&&new Date(c.informada_em)>now-864e5));
     doc.setFontSize(12);doc.setFont("helvetica","bold");doc.setTextColor(30);doc.text("Chuvas informadas - últimas 24 horas",M,y);
     doc.autoTable({startY:y+3,margin:{left:M,right:M},headStyles:head,styles:{fontSize:8.5,cellPadding:2},
       head:[["Informada","Dispensa até","Situação","Lançado por","Pontos"]],columnStyles:{4:{cellWidth:120}},
       body:ch24.length?ch24.map(c=>{const ate=new Date(c.dispensa_ate);
-        return[fmtDH(new Date(c.informada_em)),fmtDH(ate),ate>now?"Ativa":c.encerrado_em?"Encerrada antes por "+(c.encerrado_por||"-"):"Concluída",c.lancado_por||"-",nomesPontos(c.pontos||[]).join(", ")];})
+        return[fmtDH(new Date(c.informada_em)),c.zera?"Horas zeradas":fmtDH(ate),c.zera?"Contou como molhagem":ate>now?"Ativa":c.encerrado_em?"Encerrada antes por "+(c.encerrado_por||"-"):"Concluída",c.lancado_por||"-",nomesPontos(c.pontos||[]).join(", ")];})
         :[[{content:"Nenhuma chuva informada nas últimas 24 horas.",colSpan:5,styles:{textColor:120}}]]});
 
     // trajetos
@@ -777,7 +788,7 @@ async function exportarPainelPdf(){
       doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(...(st==="none"?INK:C[st]));
       const big=i.last?fmtDur(i.el):"-";doc.text(big,x+P,yy);
       const bwid=doc.getTextWidth(big);doc.setFont("helvetica","normal");doc.setFontSize(6);doc.setTextColor(...MUTED);
-      doc.text(i.last?"desde a última molhagem":"nenhuma molhagem registrada",x+P+bwid+1.5,yy);
+      doc.text(i.last?(i.last.chuva?"desde a chuva (horas zeradas)":"desde a última molhagem"):"nenhuma molhagem registrada",x+P+bwid+1.5,yy);
       // barra
       yy+=2.4;doc.setFillColor(228,234,241);doc.roundedRect(x+P,yy,w,1.6,0.8,0.8,"F");
       const r=Math.min(1,i.ratio||0);if(r>0){doc.setFillColor(...C[st]);doc.roundedRect(x+P,yy,Math.max(1.6,w*r),1.6,0.8,0.8,"F");}
@@ -787,7 +798,7 @@ async function exportarPainelPdf(){
       let prox="assim que possível",late=false;
       if(st==="chuva"){prox=["Dispensado (chuva)","até "+whenLabel(i.next)];late="chuva";}
       else if(i.last){const left=(i.next-now)/6e4;late=left<0?"late":false;prox=late?[whenLabel(i.next),"atrasada "+fmtDur(-left)]:whenLabel(i.next)+" (em "+fmtDur(left)+")";}
-      const fatos=[["Última",i.last?whenLabel(i.lt)+" · "+(fr?fr.prefixo:"frota removida"):"-",false],
+      const fatos=[["Última",i.last?whenLabel(i.lt)+" · "+(i.last.chuva?"chuva (horas zeradas)":fr?fr.prefixo:"frota removida"):"-",false],
         ["Próxima prevista",prox,late],["Intervalo",fmtDur(i.interval)+(i.avg?" · real médio "+fmtDur(i.avg):""),false]];
       const LX=x+P+LXo,LW=x+cw-P-LX;
       fatos.forEach(([l,v,dest])=>{doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(...MUTED);doc.text(l,x+P,yy);
@@ -870,8 +881,8 @@ function renderHistorico(){
   $("#hcCount").textContent=`${chs.length} informativo${chs.length===1?"":"s"}`;
   $("#hcTable").innerHTML=`<thead><tr><th>Informada</th><th>Dispensa até</th><th>Situação</th><th>Pontos</th><th>Lançado por</th><th></th></tr></thead><tbody>`+
     (chs.length?chs.map(c=>{const ate=new Date(c.dispensa_ate);
-      const sit=ate>nowD?'<span class="pill chuva">Ativa</span>':c.encerrado_em?`Encerrada antes${c.encerrado_por?" por "+esc(c.encerrado_por):""}`:"Concluída";
-      return `<tr><td class="mono">${fmtDH(new Date(c.informada_em))}</td><td class="mono">${fmtDH(ate)}</td><td>${sit}</td><td style="white-space:normal;min-width:220px">${esc(nomesPontos(c.pontos||[]).join(", "))}</td><td>${esc(c.lancado_por||"—")}</td><td>${podeDelCh(c)?`<button class="btn danger small" data-del="chuva:${c.id}">Excluir</button>`:""}</td></tr>`;}).join("")
+      const sit=c.zera?"Horas zeradas (contou como molhagem)":ate>nowD?'<span class="pill chuva">Ativa</span>':c.encerrado_em?`Encerrada antes${c.encerrado_por?" por "+esc(c.encerrado_por):""}`:"Concluída";
+      return `<tr><td class="mono">${fmtDH(new Date(c.informada_em))}</td><td class="mono">${c.zera?"—":fmtDH(ate)}</td><td>${sit}</td><td style="white-space:normal;min-width:220px">${esc(nomesPontos(c.pontos||[]).join(", "))}</td><td>${esc(c.lancado_por||"—")}</td><td>${podeDelCh(c)?`<button class="btn danger small" data-del="chuva:${c.id}">Excluir</button>`:""}</td></tr>`;}).join("")
     :`<tr><td colspan="6" style="color:var(--muted)">Nenhuma chuva informada no filtro escolhido.</td></tr>`)+"</tbody>";
 }
 
