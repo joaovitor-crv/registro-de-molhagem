@@ -253,8 +253,8 @@ tr:last-child td{border-bottom:0}
       <button class="btn" type="button" id="bChuva" style="display:flex;align-items:center;gap:8px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15.5a4.5 4.5 0 0 0-3.2-7.7 6 6 0 0 0-11.5 2A4 4 0 0 0 6 17.5h11"/><path d="M8 20l1-2M12 22l1-2M16 20l1-2"/></svg>Informar chuva</button>
     </div>
     <section class="chbox" id="chBox" hidden aria-label="Informar chuva">
-      <div class="sec-head"><h2>Informar chuva</h2><span class="note">Escolha o que a chuva faz nos pontos, toque nos pontos onde choveu e confirme. <b>Zerar horas</b>: conta como uma molhagem agora (o relógio do ponto recomeça). <b>6 ou 12 horas</b>: o ponto fica dispensado por esse tempo.</span></div>
-      <div class="chtempo" role="group" aria-label="Tempo de dispensa"><span class="lbl">Dispensar por</span><button class="chip" type="button" data-chh="0" aria-pressed="false">Zerar horas</button><button class="chip" type="button" data-chh="6" aria-pressed="false">6 horas</button><button class="chip" type="button" data-chh="12" aria-pressed="true">12 horas</button></div>
+      <div class="sec-head"><h2>Informar chuva</h2><span class="note">Toque nos pontos onde choveu e confirme. Por padrão a chuva <b>zera as horas</b>: conta como uma molhagem agora e o relógio do ponto recomeça. Se preferir, escolha dispensar por 6 ou 12 horas.</span></div>
+      <div class="chtempo" role="group" aria-label="Tempo de dispensa"><span class="lbl">Dispensar por</span><button class="chip" type="button" data-chh="0" aria-pressed="true">Zerar horas</button><button class="chip" type="button" data-chh="6" aria-pressed="false">6 horas</button><button class="chip" type="button" data-chh="12" aria-pressed="false">12 horas</button></div>
       <div class="top"><button class="btn small ghost" type="button" id="chTodos">Choveu em todos</button><button class="btn small ghost" type="button" id="chLimpar">Limpar seleção</button></div>
       <div id="chGrupos" style="display:flex;flex-direction:column;gap:16px"></div>
       <div class="foot"><span class="res" id="chRes" role="status"></span><button class="btn ghost big" type="button" id="chCancel">Cancelar</button><button class="btn big" type="button" id="chOk" disabled>Confirmar chuva</button></div>
@@ -404,7 +404,7 @@ const KEY=String(window.SUPABASE_KEY||"").trim();
 let token=store.get("molh_token"),perfil=null,timer=null,dias=60,usuarios=[];
 const S={pontos:[],frotas:[],mol:[],traj:[],chuvas:[]};
 const CHUVA_OPCOES=[0,6,12]; // 0 = zera o relógio (conta como molhagem); 6/12 = dispensa em horas (molh_informar_chuva)
-let chAberto=false; const chSel=new Set(); let chHoras=12;
+let chAberto=false; const chSel=new Set(); let chHoras=0; // padrão: chuva já zera as horas
 
 async function rpc(fn,args){
   const h={"Content-Type":"application/json","apikey":KEY};
@@ -574,7 +574,7 @@ function renderChRes(){if(!chAberto)return;
     :(n?`${n===1?"1 ponto fica dispensado":n+" pontos ficam dispensados"} por ${chHoras} h, até ${whenLabel(ate)}.`:`Marque os pontos onde choveu (dispensa de ${chHoras} h).`);
   const b=$("#chOk");b.disabled=!n;b.textContent=n?`Confirmar chuva em ${n} ${n===1?"ponto":"pontos"}`:"Confirmar chuva";
 }
-function abrirChuva(abrir){chAberto=abrir;chSel.clear();chHoras=12;renderChBox();if(abrir)$("#chBox").scrollIntoView({block:"start",behavior:"smooth"});}
+function abrirChuva(abrir){chAberto=abrir;chSel.clear();chHoras=0;renderChBox();if(abrir)$("#chBox").scrollIntoView({block:"start",behavior:"smooth"});}
 async function confirmarChuva(){
   const ids=[...chSel];if(!ids.length)return;const b=$("#chOk");b.disabled=true;b.textContent="Salvando…";
   try{await rpc("molh_informar_chuva",{p_token:token,p_pontos:ids,p_obs:"",p_horas:chHoras});
