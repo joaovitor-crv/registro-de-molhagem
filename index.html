@@ -167,6 +167,9 @@ tr:last-child td{border-bottom:0}
 .chuva-ativa .tx span{color:var(--fg)}
 .chbox{background:var(--surface);border:2px solid var(--water);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px}
 .chbox .top{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chtempo{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chtempo .lbl{font-weight:600;font-size:14px;margin-right:4px}
+.chtempo .chip{min-width:110px;justify-content:center;text-align:center}
 .chgrp{display:flex;flex-direction:column;gap:8px}
 .chgrp-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .chgrp-h h3{margin:0;font-size:15px;font-weight:600}
@@ -250,7 +253,8 @@ tr:last-child td{border-bottom:0}
       <button class="btn" type="button" id="bChuva" style="display:flex;align-items:center;gap:8px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15.5a4.5 4.5 0 0 0-3.2-7.7 6 6 0 0 0-11.5 2A4 4 0 0 0 6 17.5h11"/><path d="M8 20l1-2M12 22l1-2M16 20l1-2"/></svg>Informar chuva</button>
     </div>
     <section class="chbox" id="chBox" hidden aria-label="Informar chuva">
-      <div class="sec-head"><h2>Informar chuva</h2><span class="note">Toque nos pontos onde choveu e confirme. Cada ponto marcado fica dispensado de molhagem por 12 horas.</span></div>
+      <div class="sec-head"><h2>Informar chuva</h2><span class="note">Escolha por quanto tempo os pontos ficam dispensados, toque nos pontos onde choveu e confirme.</span></div>
+      <div class="chtempo" role="group" aria-label="Tempo de dispensa"><span class="lbl">Dispensar por</span><button class="chip" type="button" data-chh="6" aria-pressed="false">6 horas</button><button class="chip" type="button" data-chh="12" aria-pressed="true">12 horas</button></div>
       <div class="top"><button class="btn small ghost" type="button" id="chTodos">Choveu em todos</button><button class="btn small ghost" type="button" id="chLimpar">Limpar seleção</button></div>
       <div id="chGrupos" style="display:flex;flex-direction:column;gap:16px"></div>
       <div class="foot"><span class="res" id="chRes" role="status"></span><button class="btn ghost big" type="button" id="chCancel">Cancelar</button><button class="btn big" type="button" id="chOk" disabled>Confirmar chuva</button></div>
@@ -389,6 +393,7 @@ const ERROS={
   CHEGADA_INVALIDA:"O horário da chegada precisa ser depois da saída e não pode estar no futuro.",
   CHUVA_SEM_PONTOS:"Marque pelo menos um ponto onde choveu.",
   CHUVA_ENCERRADA:"Essa dispensa por chuva já terminou. Atualize a página.",
+  CHUVA_TEMPO_INVALIDO:"Escolha 6 ou 12 horas para a dispensa.",
   REDE:"Sem conexão com o servidor. Verifique a internet e tente de novo."
 };
 const msgErr=e=>(ERROS[e&&e.message]||("Erro: "+(e&&e.message||"desconhecido")))+(e&&e.message==="FORA_HORARIO"&&e.detail?" Horário liberado: "+e.detail+".":"");
@@ -398,8 +403,8 @@ const KEY=String(window.SUPABASE_KEY||"").trim();
 
 let token=store.get("molh_token"),perfil=null,timer=null,dias=60,usuarios=[];
 const S={pontos:[],frotas:[],mol:[],traj:[],chuvas:[]};
-const CHUVA_HORAS=12; // dispensa após informar chuva (definida no banco, em molh_informar_chuva)
-let chAberto=false; const chSel=new Set();
+const CHUVA_OPCOES=[6,12]; // tempos de dispensa aceitos pelo banco (molh_informar_chuva)
+let chAberto=false; const chSel=new Set(); let chHoras=12;
 
 async function rpc(fn,args){
   const h={"Content-Type":"application/json","apikey":KEY};
@@ -553,14 +558,15 @@ function renderChBox(){
   renderChRes();
 }
 function renderChRes(){if(!chAberto)return;
-  const n=chSel.size,ate=new Date(Date.now()+CHUVA_HORAS*36e5);
-  $("#chRes").textContent=n?`${n===1?"1 ponto fica dispensado":n+" pontos ficam dispensados"} por ${CHUVA_HORAS} h, até ${whenLabel(ate)}.`:"Marque os pontos onde choveu.";
+  document.querySelectorAll("[data-chh]").forEach(x=>x.setAttribute("aria-pressed",String(Number(x.dataset.chh)===chHoras)));
+  const n=chSel.size,ate=new Date(Date.now()+chHoras*36e5);
+  $("#chRes").textContent=n?`${n===1?"1 ponto fica dispensado":n+" pontos ficam dispensados"} por ${chHoras} h, até ${whenLabel(ate)}.`:`Marque os pontos onde choveu (dispensa de ${chHoras} h).`;
   const b=$("#chOk");b.disabled=!n;b.textContent=n?`Confirmar chuva em ${n} ${n===1?"ponto":"pontos"}`:"Confirmar chuva";
 }
-function abrirChuva(abrir){chAberto=abrir;chSel.clear();renderChBox();if(abrir)$("#chBox").scrollIntoView({block:"start",behavior:"smooth"});}
+function abrirChuva(abrir){chAberto=abrir;chSel.clear();chHoras=12;renderChBox();if(abrir)$("#chBox").scrollIntoView({block:"start",behavior:"smooth"});}
 async function confirmarChuva(){
   const ids=[...chSel];if(!ids.length)return;const b=$("#chOk");b.disabled=true;b.textContent="Salvando…";
-  try{await rpc("molh_informar_chuva",{p_token:token,p_pontos:ids,p_obs:""});
+  try{await rpc("molh_informar_chuva",{p_token:token,p_pontos:ids,p_obs:"",p_horas:chHoras});
     chAberto=false;chSel.clear();renderChBox();await carregar();}
   catch(err){$("#chRes").textContent=msgErr(err);b.disabled=false;b.textContent="Tentar de novo";}
 }
@@ -726,7 +732,7 @@ async function exportarPainelPdf(){
     const chAt=chuvasAtivas(now);
     if(chAt.length){
       if(y0+30>PH-11){doc.addPage();y0=cab(false);}
-      y0=secao(y0,"CHUVA INFORMADA ("+chAt.length+")","Pontos marcados pelo operador ficam dispensados de molhagem por "+CHUVA_HORAS+" horas a partir do informativo.");
+      y0=secao(y0,"CHUVA INFORMADA ("+chAt.length+")","Pontos marcados pelo operador ficam dispensados de molhagem pelo tempo escolhido no informativo (6 ou 12 horas).");
       chAt.forEach(c=>{const ate=new Date(c.dispensa_ate),nomes=nomesPontos(c.pontos||[]);
         doc.setFont("helvetica","normal");doc.setFontSize(7);
         const linhas=doc.splitTextToSize("Pontos: "+nomes.join(", "),PW-2*M-2*P);
@@ -1091,6 +1097,7 @@ document.addEventListener("click",async e=>{
   // chuva
   if(e.target.closest("#bChuva")){abrirChuva(true);return;}
   if(e.target.closest("#chCancel")){abrirChuva(false);return;}
+  const chh=e.target.closest("[data-chh]");if(chh){const h=Number(chh.dataset.chh);if(CHUVA_OPCOES.includes(h)){chHoras=h;renderChRes();}return;}
   if(e.target.closest("#chTodos")){emOperacao().forEach(p=>chSel.add(p.id));renderChBox();return;}
   if(e.target.closest("#chLimpar")){chSel.clear();renderChBox();return;}
   if(e.target.closest("#chOk")){confirmarChuva();return;}
