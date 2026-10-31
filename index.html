@@ -351,6 +351,11 @@ td.cl-ok{color:var(--ok);font-weight:600} td.cl-warn{color:var(--warn);font-weig
       <label>Dia<input id="cDia" type="date" min="2026-01-01" max="2099-12-31"></label>
       <label>Frente<select id="cFrente"><option value="Todas">Todas as frentes</option></select></label>
     </div>
+    <div class="actions" id="cImpBox" hidden>
+      <button class="btn ghost" type="button" id="cImpBtn">Importar relatório de frentes</button>
+      <input type="file" id="cImpFile" accept=".csv,text/csv" hidden>
+      <span class="msg" id="cImpMsg" role="status"></span>
+    </div>
     <p class="cl-fresh" id="cFresh"></p>
     <p class="cl-take" id="cTake"></p>
     <div class="kpis" id="cKpis"></div>
@@ -430,6 +435,8 @@ td.cl-ok{color:var(--ok);font-weight:600} td.cl-warn{color:var(--warn);font-weig
 const $=s=>document.querySelector(s);
 const PAPEL={admin:"Administrador",operador:"Operador",consulta:"Consulta"};
 const ERROS={
+  ARQUIVO_VAZIO:"O arquivo não tem viagens para importar.",
+  ARQUIVO_GRANDE:"Arquivo grande demais: importe no máximo 5.000 viagens por vez.",
   LOGIN_INVALIDO:"Usuário ou senha incorretos.",
   SESSAO_EXPIRADA:"Sua sessão expirou. Entre novamente.",
   SEM_PERMISSAO:"Seu perfil não permite essa ação.",
@@ -1237,6 +1244,7 @@ const clNum=f=>+String(f).replace(/\D/g,"")||0;
 const clOrd=(a,b)=>a==="Todas"?-1:b==="Todas"?1:clNum(a)-clNum(b);
 
 function colAbrir(){
+  $("#cImpBox").hidden=!canReg();
   if(!CL.dia){CL.dia=clHoje();$("#cDia").value=CL.dia;}
   colCarregar();
   clearInterval(CL.timer);
@@ -1350,6 +1358,43 @@ function clLinhas(box,rows,H){
     const r=rows[+i];clTip(box,[`${clHH(r.hora)}–${clHH(r.hora+1)}`,`Colhedoras: ${clN1(r.colhedoras)}`,`Transbordos: ${clN1(r.transbordos)}`,`Atendidas: ${clN1(r.atendidas)}`],e);};
   box.onpointerleave=()=>{const t=box.querySelector(".cl-tip");if(t)t.hidden=true;};
 }
+
+/* importação do relatório de frentes (CSV do sistema de caminhões) */
+function clData(v){ // "31/10/2026, 00:49:00" -> ISO em hora de Brasília
+  const m=String(v||"").trim().match(/^(\d{2})\/(\d{2})\/(\d{4}),?\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
+  return m?`${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}:${m[6]||"00"}-03:00`:null;
+}
+function clLerCSV(txt){
+  const linhas=txt.replace(/^\uFEFF/,"").split(/\r?\n/).filter(l=>l.trim());
+  if(linhas.length<2)return[];
+  const sep=linhas[0].includes(";")?";":",";
+  const norm=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+  const cab=linhas[0].split(sep).map(norm);
+  const ix=n=>cab.indexOf(n);
+  const c={frente:ix("frente"),frota:ix("frota"),su:ix("saida usina"),cf:ix("chegada frente"),sf:ix("saida frente"),cu:ix("chegada usina"),st:ix("status")};
+  if(c.frente<0||c.frota<0||c.su<0)throw new Error("FORMATO_CSV");
+  return linhas.slice(1).map(l=>{const v=l.split(sep);
+    return{frente:clNum(v[c.frente])||null,frota:clNum(v[c.frota])||null,saida_usina:clData(v[c.su]),chegada_frente:clData(v[c.cf]),saida_frente:clData(v[c.sf]),chegada_usina:clData(v[c.cu]),status:c.st>=0?String(v[c.st]||"").trim():null};
+  }).filter(r=>r.frente&&r.frota&&r.saida_usina);
+}
+$("#cImpBtn").addEventListener("click",()=>$("#cImpFile").click());
+$("#cImpFile").addEventListener("change",async e=>{
+  const f=e.target.files&&e.target.files[0];e.target.value="";if(!f)return;
+  const msg="#cImpMsg";setMsg(msg,"Lendo o arquivo…");$("#cImpBtn").disabled=true;
+  try{
+    const buf=await f.arrayBuffer();
+    let txt=new TextDecoder("utf-8").decode(buf);
+    if(txt.includes("\uFFFD"))txt=new TextDecoder("windows-1252").decode(buf);
+    let viagens;
+    try{viagens=clLerCSV(txt);}catch(err){setMsg(msg,"Esse arquivo não parece o relatório de frentes: faltam as colunas Frente, Frota e Saída usina.",true);return;}
+    if(!viagens.length){setMsg(msg,"Nenhuma viagem encontrada no arquivo.",true);return;}
+    setMsg(msg,`Importando ${viagens.length} viagens…`);
+    const r=await rpc("molh_disp_importar_viagens",{p_token:token,p_viagens:viagens});
+    setMsg(msg,`Relatório importado: ${r.novas} viagens novas e ${r.atualizadas} atualizadas.`);
+    await colCarregar();
+  }catch(err){setMsg(msg,msgErr(err),true);}
+  finally{$("#cImpBtn").disabled=false;}
+});
 
 /* ---------- início ---------- */
 tick();
