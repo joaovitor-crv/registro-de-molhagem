@@ -219,6 +219,14 @@ tr:last-child td{border-bottom:0}
 .kpi .val.cl-ok{color:var(--ok)} .kpi .val.cl-warn{color:var(--warn)} .kpi .val.cl-bad{color:var(--late)}
 td.cl-ok{color:var(--ok);font-weight:600} td.cl-warn{color:var(--warn);font-weight:600} td.cl-bad{color:var(--late);font-weight:600}
 .cl-prem{margin:0;font-size:13px;color:var(--muted);max-width:110ch}
+.cl-why{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.cl-why h3{margin:0;font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:.03em;text-transform:uppercase}
+.cl-why ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.cl-why li b{font-variant-numeric:tabular-nums}
+.cl-why .cl-conta{font-family:var(--mono);font-size:12.5px;color:var(--muted);display:block;margin-top:1px}
+.cl-why .cl-causas{margin:0;font-size:14px;color:var(--muted)}
+.cl-why .cl-causas b{color:var(--fg)}
+.cl-why .cl-ok{color:var(--ok)} .cl-why .cl-warn{color:var(--warn)} .cl-why .cl-bad{color:var(--late)}
 @media (max-width:760px){.cl-two{grid-template-columns:1fr}}
 </style>
 </head>
@@ -359,6 +367,7 @@ td.cl-ok{color:var(--ok);font-weight:600} td.cl-warn{color:var(--warn);font-weig
     <p class="cl-fresh" id="cFresh"></p>
     <p class="cl-take" id="cTake"></p>
     <div class="kpis" id="cKpis"></div>
+    <div class="cl-why" id="cWhy" hidden></div>
     <div class="sec">
       <div class="sec-head"><h2>Linha do tempo</h2><span class="note">Barras: caminhões que saíram carregados da frente na hora. Linha: quantos deveriam sair com as máquinas disponíveis.</span></div>
       <div class="cl-legend"><span><i class="cl-sw" style="background:var(--cl-muted-bar)"></i>Abaixo do esperado</span><span><i class="cl-sw" style="background:var(--water)"></i>No esperado ou acima</span><span><i class="cl-sw cl-line" style="background:var(--fg)"></i>Esperado</span></div>
@@ -1271,12 +1280,52 @@ function colResumo(linha){
   return[...m.values()].map(x=>Object.assign(x,{atingimento:x.esperado>0?x.carregados/x.esperado:null})).sort((a,b)=>clOrd(a.frente,b.frente));
 }
 
+/* quadro "Por que esses números?": monta a conta do esperado x carregado com os dados do dia */
+const CL_T_CAM=70; // toneladas por caminhão (mesma premissa do cálculo do esperado)
+function colPorque(rows,quem,st,par){
+  const box=$("#cWhy");
+  if(!rows.length){box.hidden=true;box.innerHTML="";return;}
+  const n=rows.length,soma=k=>rows.reduce((s,r)=>s+r[k],0);
+  const esp=soma("esperado"),car=soma("carregados");
+  const mCol=soma("colhedoras")/n,mTr=soma("transbordos")/n,mAt=soma("atendidas")/n;
+  const tEsp=esp*CL_T_CAM,tCol=car*CL_T_CAM,dif=car-esp;
+  const t=v=>Math.round(v).toLocaleString("pt-BR")+" t";
+  const h=n===1?"1 hora completa":n+" horas completas";
+  const ating=esp>0?car/esp:null;
+  // horas em que faltou transbordo para atender todas as colhedoras disponíveis
+  const hFaltaTr=rows.filter(r=>r.atendidas<r.colhedoras-.05);
+  const perdaTr=hFaltaTr.reduce((s,r)=>s+(r.colhedoras-r.atendidas),0)*32.5/CL_T_CAM;
+  // horas mais abaixo do esperado
+  const piores=rows.map(r=>Object.assign({gap:r.esperado-r.carregados},r)).filter(r=>r.gap>=.5&&r.carregados>0).sort((a,b)=>b.gap-a.gap).slice(0,3);
+  const semCam=rows.filter(r=>r.carregados===0&&r.esperado>=.5);
+  const causas=[];
+  const faltaTr=hFaltaTr.length?` Faltou transbordo em <b>${hFaltaTr.length}</b> ${hFaltaTr.length===1?"hora":"horas"}: colhedora sem transbordo não entra no esperado, e isso deixou de fora cerca de <b>${clN1(perdaTr)}</b> caminhões.`:"";
+  if(semCam.length)causas.push(`nenhum caminhão saiu carregado em <b>${semCam.length}</b> ${semCam.length===1?"hora que tinha":"horas que tinham"} máquina disponível (${semCam.slice(0,6).map(r=>clHH(r.hora)).join(", ")}${semCam.length>6?"…":""})`);
+  if(piores.length)causas.push(`as horas mais abaixo do esperado foram ${piores.map(r=>`<b>${clHH(r.hora)}</b> (${r.carregados} de ${clN1(r.esperado)})`).join(", ")}`);
+  if(par.length)causas.push(`há <b>${par.length}</b> ${par.length===1?"máquina parada":"máquinas paradas"} agora (veja a tabela abaixo)`);
+  let fecho;
+  if(ating==null)fecho="Sem máquinas disponíveis nas horas consideradas, então não há esperado para comparar.";
+  else if(dif>=-.5)fecho=`A frente entregou o que a disponibilidade permitia${dif>=.5?`, ${clN1(dif)} caminhões acima do esperado`:""}.`;
+  else fecho=`Ficaram faltando <b class="${clCls(ating)}">${clN1(-dif)}</b> caminhões (cerca de ${t(-dif*CL_T_CAM)}).`+(causas.length?` O que mais pesou: ${causas.join("; ")}.`:"");
+  box.hidden=false;
+  box.innerHTML=`<h3>Por que esses números?</h3>
+    <ol>
+      <li>Período: das <b>${clHH(rows[0].hora)}</b> às <b>${clHH(rows[n-1].hora+1)}</b>, ${h} para ${esc(quem)}. Só entram horas já fechadas e cobertas pelas viagens de caminhão importadas.</li>
+      <li>Máquinas: em média <b>${clN1(mCol)}</b> colhedoras e <b>${clN1(mTr)}</b> transbordos disponíveis por hora. Cada colhedora precisa de 2 transbordos, então <b>${clN1(mAt)}</b> colhedoras estavam de fato atendidas.${faltaTr}</li>
+      <li>Quantidade que deveria ser colhida: <b>${t(tEsp)}</b>, que dá <b>${clN1(esp)}</b> caminhões esperados.
+        <span class="cl-conta">${clN1(mAt)} colhedoras atendidas × 32,5 t/h × ${n} h ÷ 70 t por caminhão</span></li>
+      <li>Quantidade colhida: <b>${clInt(car)}</b> caminhões saíram carregados da frente, cerca de <b>${t(tCol)}</b>.
+        <span class="cl-conta">${clInt(car)} caminhões × 70 t (estimativa, não é o peso da balança)</span></li>
+    </ol>
+    <p class="cl-causas">${fecho}</p>`;
+}
+
 function colRender(){
   const D=CL.dados;
   const st=(D&&D.status)||{};
   $("#cFresh").innerHTML=`Última leitura da planilha: <b>${esc(st.ultima_leitura||"—")}</b> · Planilha atualizada às <b>${esc(st.planilha_salva||"—")}</b> · Viagens de caminhão até <b>${esc(st.caminhoes_ate||"—")}</b>`+
     (CL.erro?` <span class="err">· ${esc(CL.erro)}</span>`:st.ultima_ok===false?` <span class="err">· a última leitura da planilha falhou</span>`:"");
-  if(!D){$("#cKpis").innerHTML="";$("#cTake").textContent=CL.erro?"":"Carregando…";return;}
+  if(!D){$("#cKpis").innerHTML="";$("#cWhy").hidden=true;$("#cTake").textContent=CL.erro?"":"Carregando…";return;}
   const linha=D.linha||[];const res=colResumo(linha);
   const nomes=res.map(r=>r.frente).filter(f=>f!=="Todas");
   const sel=$("#cFrente");
@@ -1303,6 +1352,7 @@ function colRender(){
     (par.length?par.map(p=>`<tr><td>${esc(p.frente)}</td><td>${esc(p.tipo)}</td><td class="mono">${esc(p.frota)}</td><td>${esc(p.status)}</td><td class="mono">${esc(p.parada_desde)}</td><td>${esc(p.motivo)}</td></tr>`).join("")
     :`<tr><td colspan="6" style="color:var(--muted)">Nenhuma máquina parada.</td></tr>`)+"</tbody>";
   const rows=linha.filter(x=>x.frente===CL.frente).map(x=>({hora:+x.hora,colhedoras:+x.colhedoras,transbordos:+x.transbordos,atendidas:+x.atendidas,esperado:+x.esperado,carregados:+x.carregados})).sort((a,b)=>a.hora-b.hora);
+  colPorque(rows,quem,st,par);
   clBarLinha($("#cLinha"),rows.map(x=>Object.assign({k:clHH(x.hora)},x)),260,x=>[`${clHH(x.hora)}–${clHH(x.hora+1)}`,`Carregados: ${x.carregados}`,`Esperado: ${clN1(x.esperado)}`,`Colhedoras atendidas: ${clN1(x.atendidas)}`]);
   const dias=(D.dias||[]).map(x=>({k:x.dia.slice(8,10)+"/"+x.dia.slice(5,7),esperado:+x.esperado,carregados:+x.carregados}));
   clBarLinha($("#cDias"),dias,220,x=>[x.k,`Carregados: ${x.carregados}`,`Esperado: ${clN1(x.esperado)}`,`Atingimento: ${x.esperado>0?clPct(x.carregados/x.esperado):"—"}`]);
