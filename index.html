@@ -192,6 +192,8 @@ tr:last-child td{border-bottom:0}
 .hbtn{background:none;border:1px solid rgba(255,255,255,.3);color:var(--navy-fg);font:500 13px var(--body);border-radius:6px;padding:4px 10px;cursor:pointer}
 .hbtn:hover{background:rgba(255,255,255,.1)}
 .ucell{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ucell.nw{flex-wrap:nowrap;justify-content:flex-end}
+#pTable td.num{white-space:nowrap}#pTable .sub{font-size:12px;color:var(--muted);margin-top:2px}
 .off td{opacity:.55}
 </style>
 </head>
@@ -895,11 +897,11 @@ function renderCadastros(){
   $("#pIntBox").hidden=!adm;
   if(editando)return; // não apaga o que está sendo digitado durante a atualização automática
   const iv=p=>Number(p.intervalo_min)||360;
-  $("#pTable").innerHTML=`<thead><tr><th>Ponto</th><th>Trecho / km</th><th class="num">Intervalo</th><th></th></tr></thead><tbody>`+
-    (S.pontos.length?[...emOperacao(),...S.pontos.filter(p=>p.pausado)].map(p=>`<tr class="${p.pausado?"off":""}"><td><b>${esc(p.nome)}</b>${p.pausado?' <span class="tag">stand-by</span>':""}</td><td>${esc([p.trecho,p.km].filter(Boolean).join(" · ")||"—")}</td>
-      <td class="num">${adm?`<input type="number" min="15" step="15" value="${iv(p)}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:90px;padding:4px 6px"> min`:fmtDur(iv(p))}</td>
-      <td><span class="ucell"><button class="btn ghost small" data-edit="ponto:${p.id}">Editar</button><button class="btn ghost small" data-pausa="${p.id}:${p.pausado?0:1}">${p.pausado?"Reativar":"Pausar"}</button>${adm?`<button class="btn danger small" data-del="ponto:${p.id}">Remover</button>`:""}</span></td></tr>`).join("")
-    :`<tr><td colspan="4" style="color:var(--muted)">Nenhum ponto cadastrado.</td></tr>`)+"</tbody>";
+  $("#pTable").innerHTML=`<thead><tr><th>Ponto</th><th class="num">Intervalo</th><th></th></tr></thead><tbody>`+
+    (S.pontos.length?[...emOperacao(),...S.pontos.filter(p=>p.pausado)].map(p=>`<tr class="${p.pausado?"off":""}"><td><b>${esc(p.nome)}</b>${p.pausado?' <span class="tag">stand-by</span>':""}${[p.trecho,p.km].filter(Boolean).length?`<div class="sub">${esc([p.trecho,p.km].filter(Boolean).join(" · "))}</div>`:""}</td>
+      <td class="num">${adm?`<input type="number" min="15" step="15" value="${iv(p)}" data-int="${p.id}" aria-label="Intervalo em minutos" style="width:72px;padding:4px 6px"> min`:fmtDur(iv(p))}</td>
+      <td><span class="ucell nw"><button class="btn ghost small" data-edit="ponto:${p.id}">Editar</button><button class="btn ghost small" data-pausa="${p.id}:${p.pausado?0:1}">${p.pausado?"Reativar":"Pausar"}</button>${adm?`<button class="btn danger small" data-del="ponto:${p.id}">Remover</button>`:""}</span></td></tr>`).join("")
+    :`<tr><td colspan="3" style="color:var(--muted)">Nenhum ponto cadastrado.</td></tr>`)+"</tbody>";
   $("#fTable").innerHTML=`<thead><tr><th>Frota</th><th>Descrição</th><th class="num">Tanque</th><th></th></tr></thead><tbody>`+
     (S.frotas.length?S.frotas.map(f=>`<tr><td><b>${esc(f.prefixo)}</b></td><td>${esc(f.descricao||"—")}</td><td class="num">${fmtL(f.capacidade_l)}</td>
       <td><span class="ucell"><button class="btn ghost small" data-edit="frota:${f.id}">Editar</button>${adm?`<button class="btn danger small" data-del="frota:${f.id}">Remover</button>`:""}</span></td></tr>`).join("")
