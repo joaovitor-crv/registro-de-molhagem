@@ -291,7 +291,7 @@ tr:last-child td{border-bottom:0}
       <label>Destino (ponto a molhar)<select id="tDestino"></select></label>
       <label>Horário da saída<input id="tSaida" type="datetime-local"></label>
       <label>Motorista<input id="tMotorista" type="text" maxlength="80" placeholder="Nome"></label>
-      <label>Responsável pela informação<input id="tResp" type="text" maxlength="80" placeholder="Quem passou a informação" autocomplete="off"></label>
+      <label>Responsável pela informação<input id="tResp" type="text" maxlength="80" placeholder="Opcional: quem passou a informação" autocomplete="off"></label>
       <label>Observação<input id="tObs" type="text" maxlength="300" placeholder="Opcional"></label>
       <div class="actions full"><button class="btn" type="submit" id="tSave">Registrar saída</button><span class="msg" id="tMsg" role="status"></span></div>
     </form>
@@ -301,7 +301,7 @@ tr:last-child td{border-bottom:0}
       <label>Frota (caminhão-pipa)<select id="mFrota"></select></label>
       <label>Data e hora<input id="mQuando" type="datetime-local"></label>
       <label>Motorista<input id="mMotorista" type="text" maxlength="80" placeholder="Nome"></label>
-      <label>Responsável pela informação<input id="mResp" type="text" maxlength="80" placeholder="Quem passou a informação" autocomplete="off"></label>
+      <label>Responsável pela informação<input id="mResp" type="text" maxlength="80" placeholder="Opcional: quem passou a informação" autocomplete="off"></label>
       <label class="full">Observação<textarea id="mObs" maxlength="300" placeholder="Ex.: molhado só o lado da descida"></textarea></label>
       <div class="actions full"><button class="btn" type="submit" id="mSave">Salvar molhagem</button><span class="msg" id="mMsg" role="status"></span></div>
     </form>
@@ -1068,7 +1068,6 @@ $("#fMol").addEventListener("submit",async e=>{e.preventDefault();
   const ponto=$("#mPonto").value,frota=$("#mFrota").value,q=$("#mQuando").value;
   if(!ponto||!frota){setMsg("#mMsg","Escolha o ponto e a frota. Se a lista estiver vazia, cadastre-os em Frotas e pontos.",true);return;}
   if(!q){setMsg("#mMsg","Informe a data e a hora da molhagem.",true);return;}
-  if(!$("#mResp").value.trim()){setMsg("#mMsg","Informe o responsável pela informação.",true);$("#mResp").focus();return;}
   const quando=new Date(q);
   $("#mSave").disabled=true;
   try{await rpc("molh_registrar",{p_token:token,p_ponto:+ponto,p_frota:+frota,p_quando:quando.toISOString(),p_volume:null,p_motorista:$("#mMotorista").value,p_condicao:"",p_obs:$("#mObs").value,p_responsavel:$("#mResp").value.trim()});
@@ -1081,7 +1080,6 @@ $("#fTraj").addEventListener("submit",async e=>{e.preventDefault();
   const frota=$("#tFrota").value,dest=$("#tDestino").value,q=$("#tSaida").value;
   if(!frota||!dest){setMsg("#tMsg","Escolha a frota e o destino. Se a lista estiver vazia, cadastre-os em Frotas e pontos.",true);return;}
   if(!q){setMsg("#tMsg","Informe o horário da saída.",true);return;}
-  if(!$("#tResp").value.trim()){setMsg("#tMsg","Informe o responsável pela informação.",true);$("#tResp").focus();return;}
   const saida=new Date(q);$("#tSave").disabled=true;
   try{await rpc("molh_iniciar_trajeto",{p_token:token,p_frota:+frota,p_destino:+dest,p_origem:$("#tOrigem").value,p_saida:saida.toISOString(),p_motorista:$("#tMotorista").value,p_obs:$("#tObs").value,p_responsavel:$("#tResp").value.trim()});
     lembrarResp($("#tResp").value);
