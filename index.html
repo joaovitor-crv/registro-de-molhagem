@@ -904,14 +904,16 @@ function renderSelects(){
   fillSelect($("#hPonto"),S.pontos,pl,true); fillSelect($("#hFrota"),S.frotas,fl,true);
 }
 
-function renderHistorico(){
+let editMol=null; // id da molhagem em edição no Histórico (só administrador)
+function renderHistorico(forcar){
+  if(editMol&&!forcar)return; // não apaga o que está sendo digitado durante a atualização automática
   const pp=$("#hPonto").value, ff=$("#hFrota").value, d=+$("#hPeriodo").value; const now=Date.now();
   const list=S.mol.filter(m=>(!pp||String(m.ponto_id)===pp)&&(!ff||String(m.frota_id)===ff)&&(now-new Date(m.quando)<d*864e5)).slice(0,1000);
   const gap=m=>{const idx=S.mol.indexOf(m);const prev=S.mol.slice(idx+1).find(x=>x.ponto_id===m.ponto_id);return prev?(new Date(m.quando)-new Date(prev.quando))/6e4:null;};
   $("#hCount").textContent=`${list.length} registro${list.length===1?"":"s"}`;
   $("#hTable").innerHTML=`<thead><tr><th>Data e hora</th><th>Ponto</th><th>Frota</th><th class="num">Tempo de trajeto</th><th class="num">Desde a anterior</th><th>Motorista</th><th>Informado por</th><th>Observação</th><th>Lançado por</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(m=>{const p=byId(S.pontos,m.ponto_id),f=byId(S.frotas,m.frota_id);const g=gap(m);
-      return `<tr><td class="mono">${fmtDH(new Date(m.quando))}</td><td>${esc(p?p.nome:"(removido)")}</td><td>${esc(f?f.prefixo:"(removida)")}</td><td class="num">${m.saida?`${fmtDur((new Date(m.quando)-new Date(m.saida))/6e4)} <span style="color:var(--muted)">de ${esc(m.origem||"")}</span>`:"—"}</td><td class="num">${g==null?"—":fmtDur(g)}</td><td>${esc(m.motorista||"—")}</td><td>${esc(m.responsavel||"—")}</td><td style="white-space:normal;min-width:160px">${esc(m.obs||"")}</td><td>${esc(m.lancado_por||"—")}</td><td>${canDelMol(m)?`<button class="btn danger small" data-del="mol:${m.id}">Excluir</button>`:""}</td></tr>`;}).join("")
+      return `<tr data-mid="${m.id}"><td class="mono">${fmtDH(new Date(m.quando))}</td><td>${esc(p?p.nome:"(removido)")}</td><td>${esc(f?f.prefixo:"(removida)")}</td><td class="num">${m.saida?`${fmtDur((new Date(m.quando)-new Date(m.saida))/6e4)} <span style="color:var(--muted)">de ${esc(m.origem||"")}</span>`:"—"}</td><td class="num">${g==null?"—":fmtDur(g)}</td><td>${esc(m.motorista||"—")}</td><td>${esc(m.responsavel||"—")}</td><td style="white-space:normal;min-width:160px">${esc(m.obs||"")}</td><td>${esc(m.lancado_por||"—")}</td><td><span class="ucell nw">${canAdmin()?`<button class="btn ghost small" data-medit="${m.id}">Editar</button>`:""}${canDelMol(m)?`<button class="btn danger small" data-del="mol:${m.id}">Excluir</button>`:""}</span></td></tr>`;}).join("")
     :`<tr><td colspan="10" style="color:var(--muted)">Nenhuma molhagem no filtro escolhido.</td></tr>`)+"</tbody>";
   // chuvas informadas no período (filtra pelo ponto, se escolhido)
   const nowD=new Date();
@@ -923,6 +925,34 @@ function renderHistorico(){
       const sit=c.zera?"Horas zeradas (contou como molhagem)":ate>nowD?'<span class="pill chuva">Ativa</span>':c.encerrado_em?`Encerrada antes${c.encerrado_por?" por "+esc(c.encerrado_por):""}`:"Concluída";
       return `<tr><td class="mono">${fmtDH(new Date(c.informada_em))}</td><td class="mono">${c.zera?"—":fmtDH(ate)}</td><td>${sit}</td><td style="white-space:normal;min-width:220px">${esc(nomesPontos(c.pontos||[]).join(", "))}</td><td>${esc(c.lancado_por||"—")}</td><td>${podeDelCh(c)?`<button class="btn danger small" data-del="chuva:${c.id}">Excluir</button>`:""}</td></tr>`;}).join("")
     :`<tr><td colspan="6" style="color:var(--muted)">Nenhuma chuva informada no filtro escolhido.</td></tr>`)+"</tbody>";
+}
+
+function abrirEdicaoMol(id){
+  const m=S.mol.find(x=>x.id===id);const tr=document.querySelector(`#hTable tr[data-mid="${id}"]`);if(!m||!tr)return;
+  editMol=id;
+  const pl=p=>p.nome+(p.km?" — "+p.km:""), fl=f=>f.prefixo+(f.descricao?" — "+f.descricao:"");
+  // pontos e frotas ativos; o atual entra mesmo se tiver sido removido
+  const ps=S.pontos.some(p=>p.id===m.ponto_id)?S.pontos:[{id:m.ponto_id,nome:"(removido)"},...S.pontos];
+  const fs=S.frotas.some(f=>f.id===m.frota_id)?S.frotas:[{id:m.frota_id,prefixo:"(removida)"},...S.frotas];
+  const opt=(arr,lab,cur)=>arr.map(i=>`<option value="${i.id}"${i.id===cur?" selected":""}>${esc(lab(i))}</option>`).join("");
+  const inp=(k,v,ph,w,max)=>`<input data-me="${k}" value="${esc(v??"")}" placeholder="${ph}" maxlength="${max}" style="min-width:${w}px;padding:5px 8px">`;
+  tr.innerHTML=`<td><input type="datetime-local" data-me="quando" value="${toLocalInput(new Date(m.quando))}" style="padding:5px 6px"></td>
+    <td><select data-me="ponto" style="min-width:160px;max-width:220px">${opt(ps,pl,m.ponto_id)}</select></td>
+    <td><select data-me="frota" style="min-width:110px;max-width:180px">${opt(fs,fl,m.frota_id)}</select></td>
+    <td class="num" style="color:var(--muted)">—</td><td class="num" style="color:var(--muted)">—</td>
+    <td>${inp("motorista",m.motorista,"Motorista",120,80)}</td><td>${inp("responsavel",m.responsavel,"Opcional",120,80)}</td>
+    <td>${inp("obs",m.obs,"Observação",160,300)}</td><td>${esc(m.lancado_por||"—")}</td>
+    <td><span class="ucell nw"><button class="btn small" data-msave="${id}">Salvar</button><button class="btn ghost small" data-mcancel="1">Cancelar</button></span></td>`;
+  tr.querySelector('[data-me="quando"]').focus();
+}
+async function salvarEdicaoMol(btn){
+  const tr=btn.closest("tr"),v=k=>tr.querySelector(`[data-me="${k}"]`).value;
+  if(!v("quando")){banner("Informe a data e a hora da molhagem.");return;}
+  btn.disabled=true;
+  try{await rpc("molh_editar_molhagem",{p_token:token,p_id:editMol,p_ponto:+v("ponto"),p_frota:+v("frota"),p_quando:new Date(v("quando")).toISOString(),
+      p_motorista:v("motorista"),p_responsavel:v("responsavel").trim(),p_obs:v("obs")});
+    editMol=null;banner("");await carregar();}
+  catch(err){btn.disabled=false;banner(esc(msgErr(err)));}
 }
 
 let editando=null; // {tipo:"ponto"|"frota", id}
@@ -1015,7 +1045,7 @@ function allowed(){const v=["painel","historico"];if(canReg())v.push("registrar"
 function aba(v){const ok=allowed();if(!ok.includes(v))v="painel";
   ["painel","registrar","historico","cadastros","usuarios"].forEach(x=>$("#v-"+x).hidden=x!==v);
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===v?"true":"false"));
-  if(v!=="cadastros"&&editando){editando=null;renderCadastros();}
+  if(v!=="cadastros"&&editando){editando=null;renderCadastros();}if(v!=="historico"&&editMol){editMol=null;renderHistorico();}
   if(v==="usuarios")carregarUsuarios();}
 $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;history.replaceState(null,"","#"+b.dataset.v);aba(b.dataset.v);});
 addEventListener("hashchange",()=>{if(perfil)aba(location.hash.slice(1));});
@@ -1179,6 +1209,9 @@ document.addEventListener("click",async e=>{
   if(tc){if(!tc.classList.contains("armed")){tc.classList.add("armed");tc.textContent="Confirmar cancelamento?";setTimeout(()=>{if(tc.isConnected){tc.classList.remove("armed");tc.textContent="Cancelar trajeto";}},3500);return;}
     tc.disabled=true;try{await rpc("molh_cancelar_trajeto",{p_token:token,p_id:+tc.dataset.tcan});await carregar();}catch(err){tc.disabled=false;banner(esc(msgErr(err)));}
     return;}
+  const me=e.target.closest("[data-medit]");if(me){if(editMol){editMol=null;renderHistorico();}abrirEdicaoMol(+me.dataset.medit);return;}
+  if(e.target.closest("[data-mcancel]")){editMol=null;renderHistorico();return;}
+  const ms=e.target.closest("[data-msave]");if(ms){await salvarEdicaoMol(ms);return;}
   const ed=e.target.closest("[data-edit]");if(ed){if(editando){editando=null;renderCadastros();}const[tp,id]=ed.dataset.edit.split(":");abrirEdicao(tp,+id);return;}
   if(e.target.closest("[data-ecancel]")){editando=null;renderCadastros();return;}
   const es=e.target.closest("[data-esave]");if(es){await salvarEdicao(es);return;}
@@ -1197,6 +1230,7 @@ document.addEventListener("change",e=>{
   if(t.dataset&&t.dataset.int&&canAdmin()){const p=byId(S.pontos,t.dataset.int),v=Math.round(+t.value);
     if(!p||!(v>=15)){t.value=p?p.intervalo_min:360;return;}
     clearTimeout(intTimer[p.id]);intTimer[p.id]=setTimeout(()=>rpc("molh_salvar_ponto",{p_token:token,p_id:p.id,p_nome:p.nome,p_trecho:p.trecho,p_km:p.km,p_intervalo:v}).then(carregar).catch(err=>banner(esc(msgErr(err)))),400);}
+  if(t.id==="hPeriodo"||t.id==="hPonto"||t.id==="hFrota")editMol=null;
   if(t.id==="hPeriodo"){const d=+t.value;if(d>dias){dias=d;carregar().catch(()=>{});}else renderHistorico();}
   if(t.id==="hPonto"||t.id==="hFrota")renderHistorico();
 });
