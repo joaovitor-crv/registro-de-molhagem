@@ -384,7 +384,7 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 
   <!-- CAMINHÕES POR FRENTE -->
   <section id="v-caminhoes" class="sec" hidden>
-    <div class="sec-head"><h2>Caminhões por frente</h2><span class="note" id="dNota"></span><span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small ghost" type="button" id="bCadCam" hidden>Cadastrar caminhão</button><button class="btn small" type="button" data-rel="1">Relatório (imagem)</button></span></div>
+    <div class="sec-head"><h2>Caminhões por frente</h2><span class="note" id="dNota"></span><span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small ghost" type="button" id="bCadCam" hidden>Cadastrar caminhão</button><button class="btn small ghost" type="button" data-reltxt="1">Relatório (texto)</button><button class="btn small" type="button" data-rel="1">Relatório (imagem)</button></span></div>
     <div class="kpis" id="dKpis"></div>
     <div class="board" id="board"></div>
     <div class="sec-head" style="margin-top:8px"><h2>Mudanças nas últimas 24 horas</h2><span class="note">Cada troca de frente ou de situação.</span></div>
@@ -393,7 +393,7 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 
   <!-- AGUARDANDO SOCORRO (trelas e caminhões quebrados) -->
   <section id="v-trelas" class="sec" hidden>
-    <div class="sec-head"><h2>Aguardando socorro</h2><span class="note">Reboques (trelas) e caminhões que quebraram no trajeto: onde, por quê e quanto tempo ficaram parados.</span><button class="btn small" type="button" data-rel="1" style="margin-left:auto">Relatório (imagem)</button></div>
+    <div class="sec-head"><h2>Aguardando socorro</h2><span class="note">Reboques (trelas) e caminhões que quebraram no trajeto: onde, por quê e quanto tempo ficaram parados.</span><span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small ghost" type="button" data-reltxt="1">Relatório (texto)</button><button class="btn small" type="button" data-rel="1">Relatório (imagem)</button></span></div>
     <div class="kpis" id="trKpis"></div>
     <div class="grid" id="trAbertas"></div>
     <div class="sec" id="trRegBox" hidden>
@@ -476,6 +476,12 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
       </div>
     </div>
   </section>
+  <div class="ov" id="txtOv" hidden><div class="ovbox" role="dialog" aria-modal="true" aria-labelledby="txtTit">
+    <h2 id="txtTit">Relatório em texto</h2>
+    <p class="hint">No mesmo formato do relatório que era montado à mão. Dá para ajustar o texto aqui antes de copiar.</p>
+    <textarea id="txtRel" spellcheck="false" style="font-family:var(--mono);font-size:13px;min-height:340px"></textarea>
+    <div class="actions"><button class="btn" type="button" id="txtCopiar">Copiar</button><a class="btn ghost" id="txtWa" target="_blank" rel="noopener" style="text-decoration:none">Abrir no WhatsApp</a><button class="btn ghost" type="button" id="txtFechar">Fechar</button><span class="msg" id="txtMsg" role="status"></span></div>
+  </div></div>
   <div class="ov" id="relOv" hidden><div class="ovbox" role="dialog" aria-modal="true" aria-labelledby="relTit" style="width:min(760px,100%)">
     <h2 id="relTit">Relatório de caminhões e socorro</h2>
     <p class="hint">Distribuição por frente e o que está aguardando socorro numa imagem só, no mesmo estilo da imagem do painel. Envie no grupo do WhatsApp.</p>
@@ -1620,16 +1626,15 @@ function textoRelatorio(){
   L.push("Distribuição dos caminhões","");
   const socCam=new Set(ab.filter(t=>t.tipo==="caminhao").map(t=>t.caminhao_id));
   C.frentes.forEach(f=>{const l=C.caminhoes.filter(c=>c.frente_id===f.id&&!socCam.has(c.id)).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo));
-    if(l.length)L.push(f.nome,...l.map(c=>[c.prefixo,c.status==="carregado"?"":ST_CAM[c.status].toLowerCase(),c.obs].filter(Boolean).join(" - ")),"");});
+    if(l.length)L.push(f.nome+" - total "+l.length,...l.map(c=>[c.prefixo,ST_CAM[c.status].toLowerCase(),c.status==="parado"&&c.motivo?c.motivo.toLowerCase():"",c.obs].filter(Boolean).join(" - ")),"");});
   L.push("Aguardando socorro","");
   const rb=ab.filter(t=>t.tipo!=="caminhao"),cm=ab.filter(t=>t.tipo==="caminhao");
   if(!ab.length)L.push("Nenhum","");
   if(rb.length){L.push("Reboque","");
     [...C.frentes.map(f=>f.id),null].forEach(id=>{const l=rb.filter(t=>(t.frente_id??null)===id);if(!l.length)return;
-      L.push(frNome(id),...l.map(t=>["Trela "+(t.trela||"?"),String(t.motivo||"").toLowerCase(),cargaTxt(t)].filter(Boolean).join(" - ")+(t.caminhao_id?" (caminhão "+camPref(t.caminhao_id)+")":"")),"");});}
-  if(cm.length)L.push("Caminhão",...cm.map(t=>[camPref(t.caminhao_id),String(t.motivo||"").toLowerCase(),cargaTxt(t),t.frente_id!=null?frNome(t.frente_id):""].filter(Boolean).join(" - ")),"");
-  L.push("Atualizado em "+fmtDH(now));
-  return L.join("\n");
+      L.push(frNome(id),...l.map(t=>"Trela "+(t.trela||"?")+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t)].filter(Boolean).join(" - ")),"");});}
+  if(cm.length)L.push("Caminhão",...cm.map(t=>camPref(t.caminhao_id)+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.frente_id!=null?frNome(t.frente_id):""].filter(Boolean).join(" - ")),"");
+  return L.join("\n").replace(/\n+$/,"");
 }
 function abrirResolver(id){const t=C.trelas.find(x=>x.id===id);if(!t)return;trRes=id;
   const card=document.querySelector(`[data-trres="${id}"]`).closest("article");
@@ -1719,6 +1724,14 @@ $("#relBaixar").addEventListener("click",()=>{if(relImg)baixarArquivo(relImg.blo
 $("#relShare").addEventListener("click",async()=>{if(!relImg)return;
   try{await navigator.share({files:[new File([relImg.blob],relImg.nome,{type:"image/png"})],title:"Caminhões e socorro"});}catch(e){}});
 document.addEventListener("click",e=>{if(e.target.closest("[data-rel]"))abrirRelatorio();});
+function abrirTexto(){const t=textoRelatorio();$("#txtRel").value=t;$("#txtWa").href="https://wa.me/?text="+encodeURIComponent(t);setMsg("#txtMsg","");$("#txtOv").hidden=false;}
+document.addEventListener("click",e=>{if(e.target.closest("[data-reltxt]"))abrirTexto();});
+$("#txtRel").addEventListener("input",()=>{$("#txtWa").href="https://wa.me/?text="+encodeURIComponent($("#txtRel").value);});
+$("#txtFechar").addEventListener("click",()=>{$("#txtOv").hidden=true;});
+$("#txtOv").addEventListener("click",e=>{if(e.target.id==="txtOv")$("#txtOv").hidden=true;});
+$("#txtCopiar").addEventListener("click",async()=>{const t=$("#txtRel").value;
+  try{await navigator.clipboard.writeText(t);setMsg("#txtMsg","Copiado. Cole no grupo do WhatsApp.");}
+  catch(e){$("#txtRel").select();try{document.execCommand("copy");setMsg("#txtMsg","Copiado. Cole no grupo do WhatsApp.");}catch(x){setMsg("#txtMsg","Selecione o texto e copie.",true);}}});
 async function addCam(frId,st){
   const inp=document.querySelector(`[data-addfr="${frId}"]`),msg=document.querySelector(`[data-addmsg="${frId}"]`);
   const show=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle("err",!!err);clearTimeout(msg._t);if(t&&!err)msg._t=setTimeout(()=>{if(msg.isConnected)msg.textContent="";},4000);}};
@@ -1752,7 +1765,7 @@ $("#camOv").addEventListener("click",async e=>{
   if(e.target.id==="camOk")salvarCam();
 });
 $("#camOv").addEventListener("input",e=>{if(e.target.id==="camMotTxt"&&camSel){camSel.motivo=e.target.value.trim()||"Outro";}if(e.target.id==="camObs"&&camSel)camSel.obs=e.target.value;});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(camSel)fecharCam();$("#relOv").hidden=true;}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(camSel)fecharCam();$("#relOv").hidden=true;$("#txtOv").hidden=true;}});
 document.addEventListener("click",async e=>{
   const cm=e.target.closest("[data-cam]");if(cm){abrirCam(+cm.dataset.cam);return;}
   const rs=e.target.closest("[data-trres]");if(rs){
