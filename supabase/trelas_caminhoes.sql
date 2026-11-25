@@ -240,3 +240,9 @@ alter table molh_trelas add column if not exists carga text not null default '';
 -- observação limpa ao mudar situação/frente. Migração no Supabase: molh_caminhoes_carregando_base_obs.
 -- 25/11/2026 (4ª parte): carga do caminhão parado (carregado/vazio) em molh_caminhoes.carga, molh_cam_carga;
 -- molh_cam_status limpa obs e carga ao mudar situação/frente. Migração: molh_caminhoes_carga_parado.
+
+-- 25/11/2026 (migração molh_socorro_aguardando_editar): reboque consertado aguardando caminhão e edição do socorro
+alter table molh_trelas add column if not exists aguardando_caminhao_em timestamptz;
+-- molh_trela_aguardando(p_token, p_id, p_aguardando boolean default true): marca/desmarca "consertada, aguardando caminhão" (só registros abertos)
+-- molh_socorro_editar(p_token, p_id, p_trela, p_caminhao, p_frente, p_local, p_motivo, p_carga, p_quando): edita o registro (admin/operador)
+-- molh_cam_dados passou a devolver aguardando_caminhao_em em cada trela.

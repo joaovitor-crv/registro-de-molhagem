@@ -247,6 +247,7 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 .stbtn.vazio[aria-pressed="true"]{border-color:var(--water);background:var(--water-soft);color:var(--water)}
 #dKpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .chips.sm{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}
+.agcam{margin:6px 0 2px;padding:6px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-weight:600;font-size:13px}
 .grp.rep{border-top:1px solid var(--line);padding-top:12px}.grp.rep>#camRep{width:100%}
 .repadd{display:flex;gap:8px;margin:8px 0}.repadd input{flex:1;min-width:0}
 .grp.rep .hint{display:block;font-size:13px;color:var(--muted);margin:6px 0}
@@ -1083,8 +1084,8 @@ async function imagemCaminhoes(){
         doc.setFillColor(252,240,240);doc.setDrawColor(...COR.parado);doc.setLineWidth(0.3);doc.roundedRect(cx,y,cw,h,2,2,"FD");
         doc.setFillColor(...COR.parado);doc.rect(cx,y+1,1.4,h-2,"F");
         doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.setTextColor(...INK);doc.text(it.titulo,cx+P+1,y+5.6);
-        doc.setFontSize(5.8);const pill=(it.pill||"").toUpperCase();if(pill){const pw=Math.min(doc.getTextWidth(pill)+4,cw*0.5);
-          doc.setFillColor(...SOFT.parado);doc.roundedRect(cx+cw-P-pw,y+2.4,pw,4.2,2.1,2.1,"F");doc.setTextColor(...COR.parado);doc.text(doc.splitTextToSize(pill,pw-2)[0],cx+cw-P-pw/2,y+5.3,{align:"center"});}
+        doc.setFontSize(5.8);const pill=(it.pill||"").toUpperCase(),pc=it.ag?"carregando":"parado";if(pill){const pw=Math.min(doc.getTextWidth(pill)+4,cw*0.5);
+          doc.setFillColor(...SOFT[pc]);doc.roundedRect(cx+cw-P-pw,y+2.4,pw,4.2,2.1,2.1,"F");doc.setTextColor(...COR[pc]);doc.text(doc.splitTextToSize(pill,pw-2)[0],cx+cw-P-pw/2,y+5.3,{align:"center"});}
         doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...MUTED);doc.text(doc.splitTextToSize(it.sub,cw-2*P-1)[0],cx+P+1,y+10.4);
       });
       y+=h+6;};
@@ -1093,10 +1094,10 @@ async function imagemCaminhoes(){
     else{
       const ha=t=>"há "+fmtDur((now-new Date(t.quebrou_em))/6e4);
       const ordF=t=>{const i=C.frentes.findIndex(f=>f.id===t.frente_id);return i<0?999:i;};
-      linhas(ab.filter(t=>t.tipo!=="caminhao").sort((a,b)=>ordF(a)-ordF(b)).map(t=>({titulo:"Trela "+(t.trela||"?"),pill:capit(t.motivo),
-        sub:[frNome(t.frente_id),cargaTxt(t),t.caminhao_id?"caminhão "+camPref(t.caminhao_id):"",ha(t),t.local].filter(Boolean).join(" · ")})),"Reboque");
-      linhas(ab.filter(t=>t.tipo==="caminhao").sort((a,b)=>ordF(a)-ordF(b)).map(t=>({titulo:"Caminhão "+camPref(t.caminhao_id),pill:capit(t.motivo),
-        sub:[frNome(t.frente_id),cargaTxt(t),ha(t),t.local].filter(Boolean).join(" · ")})),"Caminhão");
+      linhas(ab.filter(t=>t.tipo!=="caminhao").sort((a,b)=>ordF(a)-ordF(b)).map(t=>({titulo:"Trela "+(t.trela||"?"),pill:t.aguardando_caminhao_em?"Consertada · aguardando caminhão":capit(t.motivo),ag:!!t.aguardando_caminhao_em,
+        sub:[t.aguardando_caminhao_em?capit(t.motivo):"",frNome(t.frente_id),cargaTxt(t),t.caminhao_id?"caminhão "+camPref(t.caminhao_id):"",ha(t),t.local].filter(Boolean).join(" · ")})),"Reboque");
+      linhas(ab.filter(t=>t.tipo==="caminhao").sort((a,b)=>ordF(a)-ordF(b)).map(t=>({titulo:"Caminhão "+camPref(t.caminhao_id),pill:t.aguardando_caminhao_em?"Consertado · aguardando caminhão":capit(t.motivo),ag:!!t.aguardando_caminhao_em,
+        sub:[t.aguardando_caminhao_em?capit(t.motivo):"",frNome(t.frente_id),cargaTxt(t),ha(t),t.local].filter(Boolean).join(" · ")})),"Caminhão");
     }
     const fim=y;
     doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(120);
@@ -1307,7 +1308,7 @@ function allowed(){const v=["painel","historico","caminhoes","trelas"];if(canReg
 function aba(v){const ok=allowed();if(!ok.includes(v))v="painel";
   ["painel","registrar","historico","caminhoes","trelas","cadastros","usuarios"].forEach(x=>$("#v-"+x).hidden=x!==v);
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===v?"true":"false"));
-  if(v!=="cadastros"&&editando){editando=null;renderCadastros();}if(v!=="cadastros"&&camEdit){camEdit=null;renderCamCadastros();}if(v!=="trelas"&&trRes){trRes=null;renderTrelas();}if(v!=="historico"&&editMol){editMol=null;renderHistorico();}
+  if(v!=="cadastros"&&editando){editando=null;renderCadastros();}if(v!=="cadastros"&&camEdit){camEdit=null;renderCamCadastros();}if(v!=="trelas"&&(trRes||socEdit)){trRes=null;socEdit=null;renderTrelas();}if(v!=="historico"&&editMol){editMol=null;renderHistorico();}
   if(v==="usuarios")carregarUsuarios();}
 $("#tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;history.replaceState(null,"","#"+b.dataset.v);aba(b.dataset.v);});
 addEventListener("hashchange",()=>{if(perfil)aba(location.hash.slice(1));});
@@ -1514,6 +1515,8 @@ const camPorTrela=v=>{v=String(v||"").trim().toLowerCase();return v?C.caminhoes.
 const cargaTxt=t=>!t.carga?"":(t.tipo==="caminhao"?t.carga:(t.carga==="carregado"?"carregada":"vazia"));
 const unidade=t=>t.tipo==="caminhao"?"Caminhão "+camPref(t.caminhao_id):"Trela "+(t.trela||"?");
 const capit=x=>{x=String(x||"").trim();return x?x[0].toUpperCase()+x.slice(1):x;};
+const agTxt=t=>t.aguardando_caminhao_em?(t.tipo==="caminhao"?"consertado, aguardando caminhão":"consertada, aguardando caminhão"):"";
+let socEdit=null;
 const socDoCam=c=>{const ab=C.trelas.filter(t=>t.status==="aberta"&&t.caminhao_id===c.id);return ab.find(t=>t.tipo==="caminhao")||ab[0]||null;};
 /* partes da linha de um caminhão parado aguardando socorro: carga, motivo e local */
 const partesSocorro=t=>[t.carga||"",(t.tipo!=="caminhao"?"trela "+(t.trela||"?")+" ":"")+String(t.motivo||"").toLowerCase(),t.local||""];
@@ -1629,12 +1632,14 @@ function renderTrelas(){
   const pl=d=>d===1?"24 h":d+" dias";const nR=ab.filter(t=>t.tipo!=="caminhao").length,nC=ab.length-nR;
   $("#trKpis").innerHTML=kpiH("Aguardando socorro",ab.length,ab.length?"late":"",ab.length?`${nR} reb. · ${nC} cam.`:"")+kpiH("Quebraram hoje",hoje)+kpiH("No período",per.length,"","em "+pl(camDias))+kpiH("Tempo médio parado",med==null?"—":fmtDur(med));
   if(!trRes){
-    $("#trAbertas").innerHTML=ab.length?ab.map(t=>{const sub=[t.tipo!=="caminhao"&&t.caminhao_id?"caminhão "+camPref(t.caminhao_id):"",frNome(t.frente_id),cargaTxt(t)].filter(Boolean).join(" · ");
-      return `<article class="card st-late">
-      <div class="card-top"><div class="t"><h3 style="font-family:var(--display);font-size:24px;line-height:1">${esc(unidade(t))}</h3><div class="sub">${esc(sub)}</div></div><span class="pill late">${esc(capit(t.motivo)||"Quebrado")}</span></div>
+    $("#trAbertas").innerHTML=ab.length?ab.map(t=>{if(socEdit===t.id)return cardEditSoc(t);
+      const ag=!!t.aguardando_caminhao_em,sub=[t.tipo!=="caminhao"&&t.caminhao_id?"caminhão "+camPref(t.caminhao_id):"",frNome(t.frente_id),cargaTxt(t)].filter(Boolean).join(" · ");
+      return `<article class="card ${ag?"st-warn":"st-late"}">
+      <div class="card-top"><div class="t"><h3 style="font-family:var(--display);font-size:24px;line-height:1">${esc(unidade(t))}</h3><div class="sub">${esc(sub)}</div></div><span class="pill ${ag?"warn":"late"}">${esc(capit(t.motivo)||"Quebrado")}</span></div>
+      ${ag?`<div class="agcam">${t.tipo==="caminhao"?"Consertado":"Consertada"} · aguardando caminhão desde ${whenLabel(new Date(t.aguardando_caminhao_em))}</div>`:""}
       <div class="elapsed"><span class="big">${fmtDur((now-new Date(t.quebrou_em))/6e4)}</span><span class="cap">aguardando desde ${whenLabel(new Date(t.quebrou_em))}</span></div>
       <dl class="facts">${t.local?`<dt>Local</dt><dd>${esc(t.local)}</dd>`:""}${t.responsavel?`<dt>Informado por</dt><dd>${esc(t.responsavel)}</dd>`:""}<dt>Registrado por</dt><dd>${esc(t.criado_por||"—")}</dd>${t.obs?`<dt>Obs.</dt><dd>${esc(t.obs)}</dd>`:""}</dl>
-      ${reg?`<div class="actions"><button class="btn small" data-trres="${t.id}">Resolvido</button></div>`:""}</article>`;}).join("")
+      ${reg?`<div class="actions"><button class="btn small" data-trres="${t.id}">Resolvido</button>${ag?`<button class="btn small ghost" data-trag="${t.id}" data-v0="0">Voltar para quebrado</button>`:(t.tipo!=="caminhao"?`<button class="btn small ghost" data-trag="${t.id}" data-v0="1">Resolvido, aguardando caminhão</button>`:"")}<button class="btn small ghost" data-tred="${t.id}">Editar</button></div>`:""}</article>`;}).join("")
       :`<div class="empty">Nada aguardando socorro no momento.</div>`;}
   const top=(arr,key,lim)=>{const m=new Map();arr.forEach(t=>{const k=key(t);m.set(k,(m.get(k)||0)+1);});return [...m].sort((a,b)=>b[1]-a[1]).slice(0,lim);};
   const bars=(tit,rows)=>{const mx=Math.max(1,...rows.map(r=>r[1]));return `<h3>${tit}</h3>`+(rows.length?rows.map(([k,v])=>`<div class="r"><span title="${esc(k)}">${esc(k)}</span><i style="width:${Math.max(4,v/mx*100)}%"></i><b>${v}</b></div>`).join(""):`<p class="vz-txt">Sem registros no período.</p>`);};
@@ -1650,6 +1655,18 @@ function renderTrelas(){
         ${adm?`<td><button class="btn danger small" data-trdel="${t.id}">Excluir</button></td>`:""}</tr>`;}).join("")
     :`<tr><td colspan="${adm?12:11}" style="color:var(--muted)">Nenhuma quebra registrada no período.</td></tr>`)+"</tbody>";
 }
+function cardEditSoc(t){const dt=toLocalInput(new Date(t.quebrou_em));
+  return `<article class="card st-warn soced" data-socid="${t.id}"><h3 style="font-family:var(--display);font-size:22px;margin:0 0 8px">Editar · ${esc(unidade(t))}</h3>
+    <div class="form" style="padding:0;border:0;background:none">
+      ${t.tipo!=="caminhao"?`<label>Nº da trela<input data-se="trela" maxlength="40" inputmode="numeric" value="${esc(t.trela||"")}"></label>`:""}
+      <label>${t.tipo==="caminhao"?"Caminhão":"Caminhão (se souber)"}<input data-se="caminhao" maxlength="20" list="trCamList" inputmode="numeric" value="${esc(t.caminhao_id?camPref(t.caminhao_id):"")}"></label>
+      <label>Frente<select data-se="frente"><option value="">Sem frente</option>${C.frentes.map(f=>`<option value="${f.id}" ${f.id===t.frente_id?"selected":""}>${esc(f.nome)}</option>`).join("")}</select></label>
+      <label>Carga<select data-se="carga"><option value="carregado" ${t.carga==="carregado"?"selected":""}>Carregado</option><option value="vazio" ${t.carga==="vazio"?"selected":""}>Vazio</option></select></label>
+      <label class="full">Motivo<input data-se="motivo" maxlength="60" list="trMotList" value="${esc(t.motivo||"")}"></label>
+      <label class="full">Local (ponto de referência)<input data-se="local" maxlength="120" list="trLocais" value="${esc(t.local||"")}"></label>
+      <label class="full">Data e hora da quebra<input data-se="quando" type="datetime-local" value="${dt}"></label>
+      <div class="actions full"><button class="btn small" type="button" data-sesave="${t.id}">Salvar</button><button class="btn small ghost" type="button" data-secancel="1">Cancelar</button><span class="msg" data-semsg role="status"></span></div>
+    </div></article>`;}
 /* relatório no mesmo formato do que era montado à mão para o WhatsApp */
 function textoRelatorio(){
   const now=new Date(),L=[];const ab=C.trelas.filter(t=>t.status==="aberta");
@@ -1665,9 +1682,9 @@ function textoRelatorio(){
   if(!ab.length)L.push("Nenhum","");
   if(rb.length){L.push("Reboque","");
     [...C.frentes.map(f=>f.id),null].forEach(id=>{const l=rb.filter(t=>(t.frente_id??null)===id);if(!l.length)return;
-      L.push(frNome(id),...l.map(t=>"Trela "+(t.trela||"?")+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.local||""].filter(Boolean).join(" - ")),"");});}
-  if(cm.length)L.push("Caminhão",...cm.map(t=>camPref(t.caminhao_id)+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.frente_id!=null?frNome(t.frente_id):"",t.local||""].filter(Boolean).join(" - ")),"");
-  return L.join("\n").replace(/\n+$/,"");
+      L.push(frNome(id),...l.map(t=>"Trela "+(t.trela||"?")+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.local||"",agTxt(t)].filter(Boolean).join(" - ")),"");});}
+  if(cm.length)L.push("Caminhão",...cm.map(t=>camPref(t.caminhao_id)+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.frente_id!=null?frNome(t.frente_id):"",t.local||"",agTxt(t)].filter(Boolean).join(" - ")),"");
+  return L.join("\n").replace(/\n+$/,"").toLocaleUpperCase("pt-BR");
 }
 function abrirResolver(id){const t=C.trelas.find(x=>x.id===id);if(!t)return;trRes=id;
   const card=document.querySelector(`[data-trres="${id}"]`).closest("article");
@@ -1817,6 +1834,19 @@ document.addEventListener("click",async e=>{
     try{await rpc("molh_trela_resolver",{p_token:token,p_id:t.id,p_quando:new Date().toISOString(),p_solucao:"",p_status_caminhao:t.caminhao_id?(t.carga||"vazio"):null});await carregarCam();}
     catch(err){rs.disabled=false;rs.classList.remove("armed","danger");rs.textContent="Resolvido";banner(esc(msgErr(err)));}
     return;}
+  const ag=e.target.closest("[data-trag]");if(ag){ag.disabled=true;
+    try{await rpc("molh_trela_aguardando",{p_token:token,p_id:+ag.dataset.trag,p_aguardando:ag.dataset.v0==="1"});await carregarCam();}
+    catch(err){ag.disabled=false;banner(esc(msgErr(err)));}return;}
+  const ed=e.target.closest("[data-tred]");if(ed){socEdit=+ed.dataset.tred;renderTrelas();const f=document.querySelector(".soced input");f&&f.focus();return;}
+  if(e.target.closest("[data-secancel]")){socEdit=null;renderTrelas();return;}
+  const sv=e.target.closest("[data-sesave]");if(sv){const box=sv.closest(".soced"),v=k=>{const el=box.querySelector(`[data-se="${k}"]`);return el?el.value:"";},msg=box.querySelector("[data-semsg]");
+    const err=m=>{msg.textContent=m;msg.classList.add("err");};
+    const cv=v("caminhao").trim();if(cv&&!camPorPref(cv)){err(`Caminhão ${cv} não está cadastrado.`);return;}
+    if(!v("motivo").trim()){err(ERROS.MOTIVO_VAZIO);return;}if(!v("local").trim()){err(ERROS.LOCAL_VAZIO);return;}if(!v("quando")){err("Informe a data e a hora.");return;}
+    sv.disabled=true;
+    try{await rpc("molh_socorro_editar",{p_token:token,p_id:+sv.dataset.sesave,p_trela:v("trela"),p_caminhao:cv,p_frente:v("frente")?+v("frente"):null,p_local:v("local"),p_motivo:v("motivo"),p_carga:v("carga"),p_quando:new Date(v("quando")).toISOString()});
+      socEdit=null;await carregarCam();}
+    catch(x){sv.disabled=false;err(msgErr(x));}return;}
   if(e.target.closest("[data-trback]")){trRes=null;renderTrelas();return;}
   const ok=e.target.closest("[data-trok]");if(ok){const q=$("#trrQuando").value;if(!q){setMsg("#trrMsg","Informe a data e a hora.",true);return;}ok.disabled=true;
     try{await rpc("molh_trela_resolver",{p_token:token,p_id:+ok.dataset.trok,p_quando:new Date(q).toISOString(),p_solucao:$("#trrSol").value,p_status_caminhao:$("#trrSt")?($("#trrSt").value||null):null});trRes=null;await carregarCam();}
