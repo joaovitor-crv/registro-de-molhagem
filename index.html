@@ -1499,7 +1499,7 @@ const ST_LISTA=["carregado","carregando","vazio","base"];
 const ST_PLURAL={carregado:["carregado","carregados"],carregando:["carregando","carregando"],vazio:["vazio","vazios"],base:["na base","na base"],parado:["parado","parados"]};
 const PILL_CAM={carregado:"ok",carregando:"warn",vazio:"trajeto",base:"none",parado:"late"};
 const ORD_CAM={parado:0,carregado:1,carregando:2,vazio:3,base:4};
-const MOT_PARADA=["Trela quebrada","Manutenção","Pneu","Aguardando carga","Abastecimento","Troca de turno","Refeição","Outro"];
+const MOT_PARADA=["Trajeto","Solo úmido","Fiscalização","Acidente","Outro"];
 const MOT_TRELA=["Pneu furado","Vazamento de ar","Engate / pino-rei","Mangueira de ar / freio","Elétrica / iluminação","Suspensão / eixo","Rolamento / cubo","Quebra mecânica","Saiu da estrada / tombou"];
 let soTipo="reboque";
 const trelasDe=c=>String(c&&c.trelas||"").split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean);
