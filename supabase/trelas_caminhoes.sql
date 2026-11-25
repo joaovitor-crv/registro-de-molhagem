@@ -221,3 +221,17 @@ grant execute on function molh_cam_dados(text, integer), molh_cam_salvar_caminha
   molh_cam_salvar_frente(text, bigint, text, integer), molh_cam_remover_frente(text, bigint), molh_cam_status(text, bigint, bigint, text, text),
   molh_trela_registrar(text, bigint, text, bigint, text, text, timestamptz, text, text, boolean), molh_trela_resolver(text, bigint, timestamptz, text, text),
   molh_trela_excluir(text, bigint) to anon;
+
+-- =====================================================================
+-- 25/11/2026 (2ª parte): trelas do caminhão, caminhões 60500–60556 e
+-- "Aguardando socorro" com reboque OU caminhão, números digitados.
+-- =====================================================================
+alter table molh_caminhoes add column if not exists trelas text not null default '';
+insert into molh_caminhoes (prefixo)
+select g::text from generate_series(60500, 60556) g
+where not exists (select 1 from molh_caminhoes c where c.ativo and lower(c.prefixo) = g::text);
+alter table molh_trelas alter column caminhao_id drop not null;
+alter table molh_trelas add column if not exists tipo text not null default 'reboque';
+alter table molh_trelas add column if not exists carga text not null default '';
+-- funções novas: molh_cam_salvar_trelas e molh_socorro_registrar; molh_cam_dados devolve trelas, tipo e carga
+-- (texto completo aplicado pelas migrações molh_caminhoes_trelas_cadastro e molh_socorro_reboque_caminhao no Supabase)

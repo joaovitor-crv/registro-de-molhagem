@@ -197,6 +197,13 @@ tr:last-child td{border-bottom:0}
 #hTable th:last-child,#hTable td:last-child{position:sticky;right:0;z-index:1;background:var(--surface);box-shadow:-6px 0 8px -6px rgba(0,0,0,.18)}#hTable thead th:last-child{background:var(--surface-2)}
 .off td{opacity:.55}
 /* caminhões por frente e trelas quebradas */
+.stbtn.tipo[aria-pressed="true"]{border-color:var(--water);background:var(--water-soft);color:var(--water)}
+.fcol.wide{grid-column:span 2}@media (max-width:560px){.fcol.wide{grid-column:auto}}
+.tiles.compact{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px}
+.tiles.compact .tile{grid-template-columns:1fr;padding:6px 8px}
+.tiles.compact .tile .tp{font-size:19px}
+.hint{margin:0;font-size:13px;color:var(--muted)} .hint.err{color:var(--late)}
+#relTxt{font-family:var(--mono);font-size:13px;min-height:320px}
 .kpi.ok .val{color:var(--ok)} .kpi.vz .val{color:var(--water)}
 .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;align-items:start}
 .fcol{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -252,7 +259,7 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
       <button data-v="registrar" id="tabReg" hidden>Registrar</button>
       <button data-v="historico">Histórico</button>
       <button data-v="caminhoes">Caminhões</button>
-      <button data-v="trelas">Trelas</button>
+      <button data-v="trelas">Socorro</button>
       <button data-v="cadastros" id="tabCad" hidden>Cadastros</button>
       <button data-v="usuarios" id="tabUsr" hidden>Usuários</button>
     </nav>
@@ -366,34 +373,34 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 
   <!-- CAMINHÕES POR FRENTE -->
   <section id="v-caminhoes" class="sec" hidden>
-    <div class="sec-head"><h2>Caminhões por frente</h2><span class="note" id="dNota"></span></div>
+    <div class="sec-head"><h2>Caminhões por frente</h2><span class="note" id="dNota"></span><button class="btn small" type="button" data-rel="1" style="margin-left:auto">Relatório para o WhatsApp</button></div>
     <div class="kpis" id="dKpis"></div>
     <div class="board" id="board"></div>
     <div class="sec-head" style="margin-top:8px"><h2>Mudanças nas últimas 24 horas</h2><span class="note">Cada troca de frente ou de situação.</span></div>
     <div class="tablebox"><table id="dHist"></table></div>
   </section>
 
-  <!-- TRELAS QUEBRADAS -->
+  <!-- AGUARDANDO SOCORRO (trelas e caminhões quebrados) -->
   <section id="v-trelas" class="sec" hidden>
-    <div class="sec-head"><h2>Trelas quebradas</h2><span class="note">Trelas que quebraram no meio do trajeto: onde, por quê e quanto tempo o caminhão ficou parado.</span></div>
+    <div class="sec-head"><h2>Aguardando socorro</h2><span class="note">Reboques (trelas) e caminhões que quebraram no trajeto: onde, por quê e quanto tempo ficaram parados.</span><button class="btn small" type="button" data-rel="1" style="margin-left:auto">Relatório para o WhatsApp</button></div>
     <div class="kpis" id="trKpis"></div>
-    <div class="sec">
-      <div class="sec-head"><h2>Paradas agora</h2><span class="note">Ainda não resolvidas. Quando o caminhão voltar a rodar, toque em <b>Resolvido</b>.</span></div>
-      <div class="grid" id="trAbertas"></div>
-    </div>
+    <div class="grid" id="trAbertas"></div>
     <div class="sec" id="trRegBox" hidden>
-      <div class="sec-head"><h2>Registrar trela quebrada</h2></div>
+      <div class="sec-head"><h2>Registrar quebra</h2></div>
       <form class="form" id="fTrela" novalidate>
-        <label>Caminhão<select id="trCam"></select></label>
-        <label>Trela<select id="trTrela"><option>1ª trela</option><option>2ª trela</option><option>As duas trelas</option></select></label>
+        <div class="full grp"><span class="lb">O que quebrou</span><div class="stbtns" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button type="button" class="stbtn tipo" data-sot="reboque" aria-pressed="true">Reboque (trela)</button><button type="button" class="stbtn tipo" data-sot="caminhao" aria-pressed="false">Caminhão</button></div></div>
+        <label id="trTrelaBox">Nº da trela<input id="trTrela" maxlength="40" list="trTrelaList" inputmode="numeric" autocomplete="off" placeholder="Ex.: 63055"><datalist id="trTrelaList"></datalist></label>
+        <label><span id="trCamLbl">Caminhão (se souber)</span><input id="trCam" maxlength="20" list="trCamList" inputmode="numeric" autocomplete="off" placeholder="Ex.: 60544"><datalist id="trCamList"></datalist></label>
+        <p class="hint full" id="trHint"></p>
         <label>Frente<select id="trFrente"></select></label>
-        <label>Motivo<select id="trMotivo"></select></label>
-        <label class="full">Local (onde quebrou)<input id="trLocal" maxlength="120" list="trLocais" placeholder="Ex.: Estrada da usina, km 4, perto da balança"><datalist id="trLocais"></datalist></label>
+        <label>Carga<select id="trCarga"><option value="carregado">Carregado</option><option value="vazio">Vazio</option></select></label>
+        <label class="full">Motivo<input id="trMotivo" maxlength="60" list="trMotList" autocomplete="off" placeholder="Ex.: pneu furado, vazamento de ar"><datalist id="trMotList"></datalist></label>
+        <label class="full">Local (opcional)<input id="trLocal" maxlength="120" list="trLocais" placeholder="Ex.: estrada da usina, km 4"><datalist id="trLocais"></datalist></label>
         <label>Data e hora<input id="trQuando" type="datetime-local"></label>
         <label>Responsável pela informação<input id="trResp" maxlength="80" placeholder="Opcional: quem passou a informação" autocomplete="off"></label>
         <label class="full">Observação<input id="trObs" maxlength="300" placeholder="Opcional"></label>
-        <label class="chk full"><input type="checkbox" id="trParado" checked> Marcar o caminhão como <b>parado</b> na aba Caminhões</label>
-        <div class="actions full"><button class="btn" type="submit" id="trSave">Registrar trela quebrada</button><span class="msg" id="trMsg" role="status"></span></div>
+        <label class="chk full" id="trParadoBox" hidden><input type="checkbox" id="trParado"> Marcar o caminhão como <b>parado</b> na aba Caminhões</label>
+        <div class="actions full"><button class="btn" type="submit" id="trSave">Registrar</button><span class="msg" id="trMsg" role="status"></span></div>
       </form>
     </div>
     <div class="two">
@@ -401,9 +408,9 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
       <div class="mini" id="trPorCam"></div>
     </div>
     <div class="sec">
-      <div class="sec-head"><h2>Histórico de trelas</h2><span class="note" id="trCount"></span></div>
+      <div class="sec-head"><h2>Histórico</h2><span class="note" id="trCount"></span></div>
       <div class="filters">
-        <label>Caminhão<select id="trfCam"></select></label>
+        <label>O que quebrou<select id="trfCam"><option value="">Todos</option><option value="reboque">Reboques (trelas)</option><option value="caminhao">Caminhões</option></select></label>
         <label>Motivo<select id="trfMot"></select></label>
         <label>Período<select id="trfPer"><option value="1">Últimas 24 h</option><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="60">Últimos 60 dias</option><option value="180">Últimos 6 meses</option><option value="365">Último ano</option></select></label>
       </div>
@@ -441,7 +448,8 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
         <h2>Caminhões canavieiros</h2>
         <form class="form" id="fCam" novalidate>
           <label>Prefixo / nº do caminhão<input id="cPref" maxlength="20" placeholder="Ex.: 60522"></label>
-          <label>Descrição<input id="cDesc" maxlength="60" placeholder="Ex.: FH 540 rodotrem"></label>
+          <label>Trelas (números, separados por vírgula)<input id="cTrelas" maxlength="120" inputmode="numeric" placeholder="Ex.: 63055, 63056"></label>
+          <label class="full">Descrição<input id="cDesc" maxlength="60" placeholder="Ex.: FH 540 rodotrem"></label>
           <div class="actions full"><button class="btn" type="submit">Adicionar caminhão</button><span class="msg" id="cMsg" role="status"></span></div>
         </form>
         <div class="tablebox"><table id="cTable"></table></div>
@@ -457,6 +465,12 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
       </div>
     </div>
   </section>
+  <div class="ov" id="relOv" hidden><div class="ovbox" role="dialog" aria-modal="true" aria-labelledby="relTit">
+    <h2 id="relTit">Relatório para o WhatsApp</h2>
+    <p class="hint">Mesmo formato do relatório que era montado à mão. Copie e cole no grupo, ou toque em <b>Abrir no WhatsApp</b>.</p>
+    <textarea id="relTxt" readonly></textarea>
+    <div class="actions"><button class="btn" type="button" id="relCopiar">Copiar</button><a class="btn ghost" id="relWa" target="_blank" rel="noopener" style="text-decoration:none">Abrir no WhatsApp</a><button class="btn ghost" type="button" id="relFechar">Fechar</button><span class="msg" id="relMsg" role="status"></span></div>
+  </div></div>
   <div class="ov" id="camOv" hidden><div class="ovbox" id="camBox" role="dialog" aria-modal="true" aria-labelledby="camTit"></div></div>
 
   <!-- USUÁRIOS -->
@@ -518,7 +532,12 @@ const ERROS={
   FRENTE_INVALIDA:"Essa frente foi removida. Atualize a página.",
   STATUS_INVALIDO:"Situação inválida.",
   LOCAL_VAZIO:"Informe o local onde a trela quebrou.",
-  TRELA_RESOLVIDA:"Essa trela já foi marcada como resolvida. Atualize a página."
+  TRELA_RESOLVIDA:"Esse registro já foi marcado como resolvido. Atualize a página.",
+  TRELA_VAZIA:"Digite o número da trela.",
+  CAMINHAO_VAZIO:"Digite o número do caminhão.",
+  CAMINHAO_NAO_CADASTRADO:"Esse caminhão não está cadastrado. Confira o número ou cadastre em Cadastros.",
+  MOTIVO_VAZIO:"Informe o motivo (ex.: pneu furado).",
+  TIPO_INVALIDO:"Escolha se quebrou o reboque ou o caminhão."
 };
 const msgErr=e=>(ERROS[e&&e.message]||("Erro: "+(e&&e.message||"desconhecido")))+(e&&e.message==="FORA_HORARIO"&&e.detail?" Horário liberado: "+e.detail+".":"");
 const store={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v);}catch(e){}}};
@@ -1360,7 +1379,14 @@ const ST_CAM={carregado:"Carregado",vazio:"Vazio",parado:"Parado"};
 const PILL_CAM={carregado:"ok",vazio:"trajeto",parado:"late"};
 const ORD_CAM={parado:0,carregado:1,vazio:2};
 const MOT_PARADA=["Trela quebrada","Manutenção","Pneu","Aguardando carga","Abastecimento","Troca de turno","Refeição","Outro"];
-const MOT_TRELA=["Pneu","Engate / pino-rei","Mangueira de ar / freio","Elétrica / iluminação","Suspensão / eixo","Rolamento / cubo","Saiu da estrada / tombou","Outro"];
+const MOT_TRELA=["Pneu furado","Vazamento de ar","Engate / pino-rei","Mangueira de ar / freio","Elétrica / iluminação","Suspensão / eixo","Rolamento / cubo","Quebra mecânica","Saiu da estrada / tombou"];
+let soTipo="reboque";
+const trelasDe=c=>String(c&&c.trelas||"").split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean);
+const camPorPref=v=>{v=String(v||"").trim().toLowerCase();return v?C.caminhoes.find(c=>c.prefixo.toLowerCase()===v)||null:null;};
+const camPorTrela=v=>{v=String(v||"").trim().toLowerCase();return v?C.caminhoes.find(c=>trelasDe(c).some(t=>t.toLowerCase()===v))||null:null;};
+const cargaTxt=t=>!t.carga?"":(t.tipo==="caminhao"?t.carga:(t.carga==="carregado"?"carregada":"vazia"));
+const unidade=t=>t.tipo==="caminhao"?"Caminhão "+camPref(t.caminhao_id):"Trela "+(t.trela||"?");
+const capit=x=>{x=String(x||"").trim();return x?x[0].toUpperCase()+x.slice(1):x;};
 const abcN=(x,y)=>String(x||"").localeCompare(String(y||""),"pt-BR",{numeric:true,sensitivity:"base"});
 const camPref=id=>{const c=C.todos.find(x=>x.id===id);return c?c.prefixo:"—";};
 const frNome=id=>{if(id==null)return "Sem frente";const f=C.frTodas.find(x=>x.id===id);return f?f.nome:"—";};
@@ -1374,33 +1400,34 @@ async function carregarCam(){
 }
 function renderCam(){renderCamSelects();renderDistribuicao();renderTrelas();renderCamCadastros();if(camSel)renderCamBox();}
 function renderCamSelects(){
-  const fl=[...C.frentes];
-  fillSelect($("#trCam"),C.caminhoes,c=>c.prefixo+(c.descricao?" — "+c.descricao:"")+(c.status==="parado"?" (parado)":""));
-  const fr=$("#trFrente"),cur=fr.value;fr.innerHTML=`<option value="">Sem frente</option>`+fl.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join("");
-  if([...fr.options].some(o=>o.value===cur))fr.value=cur;else{const c=byId(C.caminhoes,$("#trCam").value);fr.value=c&&c.frente_id!=null?String(c.frente_id):"";}
-  if(!$("#trMotivo").options.length)$("#trMotivo").innerHTML=MOT_TRELA.map(m=>`<option>${m}</option>`).join("");
+  $("#trCamList").innerHTML=C.caminhoes.map(c=>`<option value="${esc(c.prefixo)}">${esc(trelasDe(c).length?"trelas "+trelasDe(c).join(", "):(c.descricao||""))}</option>`).join("");
+  const trs=[...new Set([...C.caminhoes.flatMap(trelasDe),...C.trelas.map(t=>t.trela).filter(Boolean)])].sort(abcN);
+  $("#trTrelaList").innerHTML=trs.map(t=>{const c=camPorTrela(t);return `<option value="${esc(t)}">${c?"caminhão "+esc(c.prefixo):""}</option>`;}).join("");
+  const fr=$("#trFrente"),cur=fr.value;fr.innerHTML=`<option value="">Sem frente</option>`+C.frentes.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join("");
+  if([...fr.options].some(o=>o.value===cur))fr.value=cur;
+  const mots=[...new Set([...MOT_TRELA,...C.trelas.map(t=>capit(t.motivo)).filter(Boolean)])];
+  $("#trMotList").innerHTML=mots.map(m=>`<option value="${esc(m)}"></option>`).join("");
   const locs=[...new Set(C.trelas.map(t=>t.local).filter(Boolean))].slice(0,40);
   $("#trLocais").innerHTML=locs.map(l=>`<option value="${esc(l)}"></option>`).join("");
-  const fc=$("#trfCam"),cv=fc.value;fc.innerHTML=`<option value="">Todos</option>`+C.todos.slice().sort((a,b)=>abcN(a.prefixo,b.prefixo)).map(c=>`<option value="${c.id}">${esc(c.prefixo)}</option>`).join("");if([...fc.options].some(o=>o.value===cv))fc.value=cv;
-  const fm=$("#trfMot"),mv=fm.value;const mots=[...new Set([...MOT_TRELA,...C.trelas.map(t=>t.motivo).filter(Boolean)])];
-  fm.innerHTML=`<option value="">Todos</option>`+mots.map(m=>`<option>${esc(m)}</option>`).join("");if([...fm.options].some(o=>o.value===mv))fm.value=mv;
+  const fm=$("#trfMot"),mv=fm.value;const usados=[...new Set(C.trelas.map(t=>capit(t.motivo)).filter(Boolean))].sort(abcN);
+  fm.innerHTML=`<option value="">Todos</option>`+usados.map(m=>`<option>${esc(m)}</option>`).join("");if([...fm.options].some(o=>o.value===mv))fm.value=mv;
 }
 function renderDistribuicao(){
   const now=new Date(),reg=canReg(),cs=C.caminhoes,n=s=>cs.filter(c=>c.status===s).length;
   const ab=C.trelas.filter(t=>t.status==="aberta").length;
   $("#dNota").innerHTML=reg?"Toque no caminhão para trocar a frente ou a situação.":"Acompanhamento: a situação é atualizada pelos operadores.";
-  $("#dKpis").innerHTML=kpiH("Caminhões",cs.length)+kpiH("Carregados",n("carregado"),"ok")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Parados",n("parado"),n("parado")?"late":"")+kpiH("Trelas quebradas agora",ab,ab?"late":"");
+  $("#dKpis").innerHTML=kpiH("Caminhões",cs.length)+kpiH("Carregados",n("carregado"),"ok")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Parados",n("parado"),n("parado")?"late":"")+kpiH("Aguardando socorro",ab,ab?"late":"");
   if(!C.ok){$("#board").innerHTML=`<div class="empty">Não foi possível carregar os caminhões. Tente atualizar a página.</div>`;}
   else if(!cs.length){$("#board").innerHTML=`<div class="empty">Nenhum caminhão cadastrado ainda.${reg?" Cadastre os caminhões em <b>Cadastros</b>.":""}</div>`;}
   else{const cols=[...C.frentes.map(f=>({id:f.id,nome:f.nome})),{id:null,nome:"Sem frente"}];
     $("#board").innerHTML=cols.map(col=>{
       const l=cs.filter(c=>(c.frente_id??null)===col.id).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo));
       if(col.id===null&&!l.length)return "";const k=s=>l.filter(c=>c.status===s).length;
-      return `<section class="fcol"><div class="fcol-h"><h3>${esc(col.nome)}</h3><span class="cnt">${l.length}</span></div>
+      return `<section class="fcol${col.id===null&&l.length>6?" wide":""}"><div class="fcol-h"><h3>${esc(col.nome)}</h3><span class="cnt">${l.length}</span></div>
         <div class="fcol-s"><span><i class="d ok"></i>${k("carregado")} carregado${k("carregado")===1?"":"s"}</span><span><i class="d vz"></i>${k("vazio")} vazio${k("vazio")===1?"":"s"}</span><span><i class="d late"></i>${k("parado")} parado${k("parado")===1?"":"s"}</span></div>
-        <div class="tiles">${l.length?l.map(c=>{const tag=reg?"button":"div";
-          return `<${tag} ${reg?`type="button" data-cam="${c.id}" aria-label="Alterar ${esc(c.prefixo)}"`:""} class="tile st-${c.status}"><span class="tp">${esc(c.prefixo)}</span><span class="pill ${PILL_CAM[c.status]}">${ST_CAM[c.status]}</span>
-            <span class="tt">há ${fmtDur((now-new Date(c.status_desde))/6e4)}${c.status==="parado"&&c.motivo?" · "+esc(c.motivo):""}</span></${tag}>`;}).join(""):`<p class="vz-txt">Nenhum caminhão.</p>`}</div></section>`;}).join("");}
+        <div class="tiles${col.id===null&&l.length>6?" compact":""}">${l.length?l.map(c=>{const tag=reg?"button":"div";
+          return `<${tag} ${reg?`type="button" data-cam="${c.id}" aria-label="Alterar ${esc(c.prefixo)}"`:""} class="tile st-${c.status}"><span class="tp">${esc(c.prefixo)}</span>${col.id===null&&l.length>6?"":`<span class="pill ${PILL_CAM[c.status]}">${ST_CAM[c.status]}</span>`}
+            ${col.id===null&&l.length>6?"":`<span class="tt">há ${fmtDur((now-new Date(c.status_desde))/6e4)}${c.status==="parado"&&c.motivo?" · "+esc(c.motivo):""}</span>`}</${tag}>`;}).join(""):`<p class="vz-txt">Nenhum caminhão.</p>`}</div></section>`;}).join("");}
   const h=C.hist.slice(0,80);
   $("#dHist").innerHTML=`<thead><tr><th>Quando</th><th>Caminhão</th><th>Frente</th><th>Situação</th><th>Motivo</th><th>Por</th></tr></thead><tbody>`+
     (h.length?h.map(x=>`<tr><td class="mono">${fmtDH(new Date(x.quando))}</td><td><b>${esc(camPref(x.caminhao_id))}</b></td><td>${esc(frNome(x.frente_id))}</td><td><span class="pill ${PILL_CAM[x.status]||"none"}">${ST_CAM[x.status]||esc(x.status)}</span></td><td>${esc(x.motivo||"—")}</td><td>${esc(x.por||"—")}</td></tr>`).join("")
@@ -1412,7 +1439,7 @@ function fecharCam(){camSel=null;$("#camOv").hidden=true;$("#camBox").innerHTML=
 function renderCamBox(){const c=byId(C.caminhoes,camSel.id);if(!c){fecharCam();return;}
   const fr=[...C.frentes.map(f=>({id:f.id,nome:f.nome})),{id:null,nome:"Sem frente"}];
   const outro=camSel.motivo&&!MOT_PARADA.includes(camSel.motivo);
-  $("#camBox").innerHTML=`<h2 id="camTit">${esc(c.prefixo)}<small>${ST_CAM[c.status]} há ${fmtDur((new Date()-new Date(c.status_desde))/6e4)} · ${esc(frNome(c.frente_id))}</small></h2>
+  $("#camBox").innerHTML=`<h2 id="camTit">${esc(c.prefixo)}<small>${ST_CAM[c.status]} há ${fmtDur((new Date()-new Date(c.status_desde))/6e4)} · ${esc(frNome(c.frente_id))}${trelasDe(c).length?" · trelas "+esc(trelasDe(c).join(", ")):""}</small></h2>
     <div class="grp"><span class="lb">Situação</span><div class="stbtns">${["carregado","vazio","parado"].map(s=>`<button type="button" class="stbtn ${s}" data-cst="${s}" aria-pressed="${camSel.status===s}">${ST_CAM[s]}</button>`).join("")}</div></div>
     ${camSel.status==="parado"?`<div class="grp"><span class="lb">Motivo da parada</span><div class="chips sm">${MOT_PARADA.map(m=>`<button type="button" class="chip" data-cmot="${esc(m)}" aria-pressed="${camSel.motivo===m||(m==="Outro"&&outro)}">${m}</button>`).join("")}</div>
       ${outro||camSel.motivo==="Outro"?`<input id="camMotTxt" maxlength="80" placeholder="Descreva o motivo" value="${esc(outro?camSel.motivo:"")}">`:""}</div>`:""}
@@ -1433,43 +1460,63 @@ function renderTrelas(){
   const h0=new Date();h0.setHours(0,0,0,0);const hoje=C.trelas.filter(t=>new Date(t.quebrou_em)>=h0).length;
   const res=per.filter(t=>t.status==="resolvida"&&t.resolvido_em);
   const med=res.length?res.reduce((a,t)=>a+(new Date(t.resolvido_em)-new Date(t.quebrou_em))/6e4,0)/res.length:null;
-  const pl=d=>d===1?"24 h":d+" dias";
-  $("#trKpis").innerHTML=kpiH("Paradas agora",ab.length,ab.length?"late":"")+kpiH("Quebraram hoje",hoje)+kpiH("No período",per.length,"","em "+pl(camDias))+kpiH("Tempo médio parado",med==null?"—":fmtDur(med));
+  const pl=d=>d===1?"24 h":d+" dias";const nR=ab.filter(t=>t.tipo!=="caminhao").length,nC=ab.length-nR;
+  $("#trKpis").innerHTML=kpiH("Aguardando socorro",ab.length,ab.length?"late":"",ab.length?`${nR} reb. · ${nC} cam.`:"")+kpiH("Quebraram hoje",hoje)+kpiH("No período",per.length,"","em "+pl(camDias))+kpiH("Tempo médio parado",med==null?"—":fmtDur(med));
   if(!trRes){
-    $("#trAbertas").innerHTML=ab.length?ab.map(t=>`<article class="card st-late">
-      <div class="card-top"><div class="t"><h3 style="font-family:var(--display);font-size:24px;line-height:1">${esc(camPref(t.caminhao_id))}</h3><div class="sub">${esc([t.trela,frNome(t.frente_id)].filter(Boolean).join(" · "))}</div></div><span class="pill late">${esc(t.motivo||"Quebrada")}</span></div>
-      <div class="elapsed"><span class="big">${fmtDur((now-new Date(t.quebrou_em))/6e4)}</span><span class="cap">parado desde ${whenLabel(new Date(t.quebrou_em))}</span></div>
-      <dl class="facts"><dt>Local</dt><dd>${esc(t.local||"—")}</dd>${t.responsavel?`<dt>Informado por</dt><dd>${esc(t.responsavel)}</dd>`:""}<dt>Registrado por</dt><dd>${esc(t.criado_por||"—")}</dd>${t.obs?`<dt>Obs.</dt><dd>${esc(t.obs)}</dd>`:""}</dl>
-      ${reg?`<div class="actions"><button class="btn small" data-trres="${t.id}">Resolvido</button></div>`:""}</article>`).join("")
-      :`<div class="empty">Nenhuma trela quebrada no momento.</div>`;}
+    $("#trAbertas").innerHTML=ab.length?ab.map(t=>{const sub=[t.tipo!=="caminhao"&&t.caminhao_id?"caminhão "+camPref(t.caminhao_id):"",frNome(t.frente_id),cargaTxt(t)].filter(Boolean).join(" · ");
+      return `<article class="card st-late">
+      <div class="card-top"><div class="t"><h3 style="font-family:var(--display);font-size:24px;line-height:1">${esc(unidade(t))}</h3><div class="sub">${esc(sub)}</div></div><span class="pill late">${esc(capit(t.motivo)||"Quebrado")}</span></div>
+      <div class="elapsed"><span class="big">${fmtDur((now-new Date(t.quebrou_em))/6e4)}</span><span class="cap">aguardando desde ${whenLabel(new Date(t.quebrou_em))}</span></div>
+      <dl class="facts">${t.local?`<dt>Local</dt><dd>${esc(t.local)}</dd>`:""}${t.responsavel?`<dt>Informado por</dt><dd>${esc(t.responsavel)}</dd>`:""}<dt>Registrado por</dt><dd>${esc(t.criado_por||"—")}</dd>${t.obs?`<dt>Obs.</dt><dd>${esc(t.obs)}</dd>`:""}</dl>
+      ${reg?`<div class="actions"><button class="btn small" data-trres="${t.id}">Resolvido</button></div>`:""}</article>`;}).join("")
+      :`<div class="empty">Nada aguardando socorro no momento.</div>`;}
   const top=(arr,key,lim)=>{const m=new Map();arr.forEach(t=>{const k=key(t);m.set(k,(m.get(k)||0)+1);});return [...m].sort((a,b)=>b[1]-a[1]).slice(0,lim);};
   const bars=(tit,rows)=>{const mx=Math.max(1,...rows.map(r=>r[1]));return `<h3>${tit}</h3>`+(rows.length?rows.map(([k,v])=>`<div class="r"><span title="${esc(k)}">${esc(k)}</span><i style="width:${Math.max(4,v/mx*100)}%"></i><b>${v}</b></div>`).join(""):`<p class="vz-txt">Sem registros no período.</p>`);};
-  $("#trPorMotivo").innerHTML=bars(`Quebras por motivo · ${pl(camDias)}`,top(per,t=>t.motivo||"Sem motivo",8));
-  $("#trPorCam").innerHTML=bars(`Caminhões com mais quebras · ${pl(camDias)}`,top(per,t=>camPref(t.caminhao_id),8));
-  const fc=$("#trfCam").value,fm=$("#trfMot").value;
-  const lst=per.filter(t=>(!fc||String(t.caminhao_id)===fc)&&(!fm||t.motivo===fm));
+  $("#trPorMotivo").innerHTML=bars(`Quebras por motivo · ${pl(camDias)}`,top(per,t=>capit(t.motivo)||"Sem motivo",8));
+  $("#trPorCam").innerHTML=bars(`Trelas e caminhões que mais quebraram · ${pl(camDias)}`,top(per,unidade,8));
+  const ft=$("#trfCam").value,fm=$("#trfMot").value;
+  const lst=per.filter(t=>(!ft||(t.tipo||"reboque")===ft)&&(!fm||capit(t.motivo)===fm));
   $("#trCount").textContent=lst.length===1?"1 registro":lst.length+" registros";
-  $("#trTable").innerHTML=`<thead><tr><th>Quebrou em</th><th>Caminhão</th><th>Trela</th><th>Frente</th><th>Local</th><th>Motivo</th><th>Resolvido em</th><th class="num">Tempo parado</th><th>Solução</th><th>Registrado por</th>${adm?"<th></th>":""}</tr></thead><tbody>`+
+  $("#trTable").innerHTML=`<thead><tr><th>Quebrou em</th><th>O que quebrou</th><th>Caminhão</th><th>Frente</th><th>Carga</th><th>Motivo</th><th>Local</th><th>Resolvido em</th><th class="num">Tempo parado</th><th>Solução</th><th>Registrado por</th>${adm?"<th></th>":""}</tr></thead><tbody>`+
     (lst.length?lst.map(t=>{const q=new Date(t.quebrou_em),r=t.resolvido_em?new Date(t.resolvido_em):null;
-      return `<tr><td class="mono">${fmtDH(q)}</td><td><b>${esc(camPref(t.caminhao_id))}</b></td><td>${esc(t.trela||"—")}</td><td>${esc(frNome(t.frente_id))}</td><td style="white-space:normal;min-width:180px">${esc(t.local||"—")}</td><td>${esc(t.motivo||"—")}</td>
-        <td class="mono">${r?fmtDH(r):'<span class="pill late">Parado</span>'}</td><td class="num">${fmtDur(((r||now)-q)/6e4)}</td><td style="white-space:normal;min-width:140px">${esc(t.solucao||"—")}</td><td>${esc(t.criado_por||"—")}${t.resolvido_por&&t.resolvido_por!==t.criado_por?`<div class="sub" style="font-size:12px;color:var(--muted)">resolvido: ${esc(t.resolvido_por)}</div>`:""}</td>
+      return `<tr><td class="mono">${fmtDH(q)}</td><td><b>${esc(t.tipo==="caminhao"?"Caminhão":"Trela "+(t.trela||"?"))}</b></td><td>${t.caminhao_id?`<b>${esc(camPref(t.caminhao_id))}</b>`:"—"}</td><td>${esc(frNome(t.frente_id))}</td><td>${esc(cargaTxt(t)||"—")}</td><td>${esc(capit(t.motivo)||"—")}</td><td style="white-space:normal;min-width:140px">${esc(t.local||"—")}</td>
+        <td class="mono">${r?fmtDH(r):'<span class="pill late">Aguardando</span>'}</td><td class="num">${fmtDur(((r||now)-q)/6e4)}</td><td style="white-space:normal;min-width:140px">${esc(t.solucao||"—")}</td><td>${esc(t.criado_por||"—")}${t.resolvido_por&&t.resolvido_por!==t.criado_por?`<div style="font-size:12px;color:var(--muted)">resolvido: ${esc(t.resolvido_por)}</div>`:""}</td>
         ${adm?`<td><button class="btn danger small" data-trdel="${t.id}">Excluir</button></td>`:""}</tr>`;}).join("")
-    :`<tr><td colspan="${adm?11:10}" style="color:var(--muted)">Nenhuma trela quebrada no período.</td></tr>`)+"</tbody>";
+    :`<tr><td colspan="${adm?12:11}" style="color:var(--muted)">Nenhuma quebra registrada no período.</td></tr>`)+"</tbody>";
 }
+/* relatório no mesmo formato do que era montado à mão para o WhatsApp */
+function textoRelatorio(){
+  const now=new Date(),L=[];const ab=C.trelas.filter(t=>t.status==="aberta");
+  L.push("Distribuição dos caminhões","");
+  C.frentes.forEach(f=>{const l=C.caminhoes.filter(c=>c.frente_id===f.id&&c.status!=="parado").sort((a,b)=>abcN(a.prefixo,b.prefixo));
+    if(l.length)L.push(f.nome,...l.map(c=>c.prefixo),"");});
+  const par=C.caminhoes.filter(c=>c.status==="parado"&&!/^Aguardando socorro/i.test(c.motivo||"")&&!ab.some(t=>t.tipo==="caminhao"&&t.caminhao_id===c.id));
+  if(par.length)L.push("Parados",...par.map(c=>[c.prefixo,(c.motivo||"").toLowerCase(),c.frente_id!=null?frNome(c.frente_id):""].filter(Boolean).join(" - ")),"");
+  L.push("Aguardando socorro","");
+  const rb=ab.filter(t=>t.tipo!=="caminhao"),cm=ab.filter(t=>t.tipo==="caminhao");
+  if(!ab.length)L.push("Nenhum","");
+  if(rb.length){L.push("Reboque","");
+    [...C.frentes.map(f=>f.id),null].forEach(id=>{const l=rb.filter(t=>(t.frente_id??null)===id);if(!l.length)return;
+      L.push(frNome(id),...l.map(t=>["Trela "+(t.trela||"?"),String(t.motivo||"").toLowerCase(),cargaTxt(t)].filter(Boolean).join(" - ")+(t.caminhao_id?" (caminhão "+camPref(t.caminhao_id)+")":"")),"");});}
+  if(cm.length)L.push("Caminhão",...cm.map(t=>[camPref(t.caminhao_id),String(t.motivo||"").toLowerCase(),cargaTxt(t),t.frente_id!=null?frNome(t.frente_id):""].filter(Boolean).join(" - ")),"");
+  L.push("Atualizado em "+fmtDH(now));
+  return L.join("\n");
+}
+function abrirRelatorio(){const t=textoRelatorio();$("#relTxt").value=t;$("#relWa").href="https://wa.me/?text="+encodeURIComponent(t);setMsg("#relMsg","");$("#relOv").hidden=false;}
 function abrirResolver(id){const t=C.trelas.find(x=>x.id===id);if(!t)return;trRes=id;
   const card=document.querySelector(`[data-trres="${id}"]`).closest("article");
   card.querySelector(".actions").outerHTML=`<div class="form" style="grid-template-columns:1fr;padding:12px">
     <label>Resolvido em<input type="datetime-local" id="trrQuando" value="${toLocalInput(new Date())}"></label>
     <label>O que foi feito<input id="trrSol" maxlength="200" placeholder="Ex.: trocou o pneu no local"></label>
-    <label>Depois do conserto, o caminhão fica<select id="trrSt"><option value="vazio">Vazio</option><option value="carregado">Carregado</option><option value="">Continua parado</option></select></label>
+    ${t.caminhao_id&&(byId(C.caminhoes,t.caminhao_id)||{}).status==="parado"?`<label>Depois do conserto, o caminhão ${esc(camPref(t.caminhao_id))} fica<select id="trrSt"><option value="vazio">Vazio</option><option value="carregado">Carregado</option><option value="">Continua parado</option></select></label>`:""}
     <div class="actions"><button class="btn small" type="button" data-trok="${id}">Confirmar</button><button class="btn ghost small" type="button" data-trback="1">Voltar</button><span class="msg" id="trrMsg" role="status"></span></div></div>`;
   $("#trrSol").focus();}
 function renderCamCadastros(){
   if(!canReg())return;if(camEdit)return;const adm=canAdmin();
-  $("#cTable").innerHTML=`<thead><tr><th>Caminhão</th><th>Descrição</th><th>Frente</th><th></th></tr></thead><tbody>`+
-    (C.caminhoes.length?C.caminhoes.map(c=>`<tr><td><b>${esc(c.prefixo)}</b></td><td>${esc(c.descricao||"—")}</td><td>${esc(frNome(c.frente_id))}</td>
+  $("#cTable").innerHTML=`<thead><tr><th>Caminhão</th><th>Trelas</th><th>Descrição</th><th>Frente</th><th></th></tr></thead><tbody>`+
+    (C.caminhoes.length?C.caminhoes.map(c=>`<tr><td><b>${esc(c.prefixo)}</b></td><td>${esc(trelasDe(c).join(", ")||"—")}</td><td>${esc(c.descricao||"—")}</td><td>${esc(frNome(c.frente_id))}</td>
       <td><span class="ucell nw"><button class="btn ghost small" data-cedit="cam:${c.id}">Editar</button><button class="btn danger small" data-cdel="cam:${c.id}">Remover</button></span></td></tr>`).join("")
-    :`<tr><td colspan="4" style="color:var(--muted)">Nenhum caminhão cadastrado.</td></tr>`)+"</tbody>";
+    :`<tr><td colspan="5" style="color:var(--muted)">Nenhum caminhão cadastrado.</td></tr>`)+"</tbody>";
   $("#frTable").innerHTML=`<thead><tr><th>Frente</th><th class="num">Ordem</th><th class="num">Caminhões</th><th></th></tr></thead><tbody>`+
     (C.frentes.length?C.frentes.map(f=>`<tr><td><b>${esc(f.nome)}</b></td><td class="num">${f.ordem}</td><td class="num">${C.caminhoes.filter(c=>c.frente_id===f.id).length}</td>
       <td><span class="ucell nw"><button class="btn ghost small" data-cedit="fr:${f.id}">Editar</button><button class="btn danger small" data-cdel="fr:${f.id}">Remover</button></span></td></tr>`).join("")
@@ -1479,37 +1526,68 @@ function abrirCamEdit(tipo,id){camEdit={tipo,id};
   const tr=document.querySelector(`[data-cedit="${tipo}:${id}"]`).closest("tr");
   const btns=`<span class="ucell nw"><button class="btn small" data-csave="1">Salvar</button><button class="btn ghost small" data-ccancel="1">Cancelar</button></span>`;
   const inp=(k,v,ph,w,tp)=>`<input data-ce="${k}" ${tp?`type="${tp}"`:""} value="${esc(v??"")}" placeholder="${ph}" style="min-width:${w}px;padding:5px 8px">`;
-  if(tipo==="cam"){const c=byId(C.caminhoes,id);tr.innerHTML=`<td>${inp("prefixo",c.prefixo,"Prefixo",90)}</td><td>${inp("descricao",c.descricao,"Descrição",150)}</td><td>${esc(frNome(c.frente_id))}</td><td>${btns}</td>`;}
+  if(tipo==="cam"){const c=byId(C.caminhoes,id);tr.innerHTML=`<td>${inp("prefixo",c.prefixo,"Prefixo",80)}</td><td>${inp("trelas",trelasDe(c).join(", "),"Ex.: 63055, 63056",140)}</td><td>${inp("descricao",c.descricao,"Descrição",130)}</td><td>${esc(frNome(c.frente_id))}</td><td>${btns}</td>`;}
   else{const f=byId(C.frentes,id);tr.innerHTML=`<td>${inp("nome",f.nome,"Nome",140)}</td><td class="num">${inp("ordem",f.ordem,"0",60,"number")}</td><td></td><td>${btns}</td>`;}
   tr.querySelector("input").focus();}
 async function salvarCamEdit(btn){const tr=btn.closest("tr"),v=k=>tr.querySelector(`[data-ce="${k}"]`).value;const msg=camEdit.tipo==="cam"?"#cMsg":"#frMsg";btn.disabled=true;
-  try{if(camEdit.tipo==="cam")await rpc("molh_cam_salvar_caminhao",{p_token:token,p_id:camEdit.id,p_prefixo:v("prefixo"),p_descricao:v("descricao")});
+  try{if(camEdit.tipo==="cam"){await rpc("molh_cam_salvar_caminhao",{p_token:token,p_id:camEdit.id,p_prefixo:v("prefixo"),p_descricao:v("descricao")});
+      await rpc("molh_cam_salvar_trelas",{p_token:token,p_id:camEdit.id,p_trelas:v("trelas")});}
     else await rpc("molh_cam_salvar_frente",{p_token:token,p_id:camEdit.id,p_nome:v("nome"),p_ordem:Math.round(+v("ordem")||0)});
     setMsg(msg,"Atualizado.");camEdit=null;await carregarCam();}
   catch(e){setMsg(msg,msgErr(e),true);btn.disabled=false;}}
 
 $("#fCam").addEventListener("submit",async e=>{e.preventDefault();
-  try{await rpc("molh_cam_salvar_caminhao",{p_token:token,p_id:null,p_prefixo:$("#cPref").value,p_descricao:$("#cDesc").value});
-    setMsg("#cMsg",`Caminhão ${$("#cPref").value.trim()} cadastrado.`);$("#cPref").value="";$("#cDesc").value="";$("#cPref").focus();await carregarCam();}
+  try{const nid=await rpc("molh_cam_salvar_caminhao",{p_token:token,p_id:null,p_prefixo:$("#cPref").value,p_descricao:$("#cDesc").value});
+    if($("#cTrelas").value.trim())await rpc("molh_cam_salvar_trelas",{p_token:token,p_id:nid,p_trelas:$("#cTrelas").value});
+    setMsg("#cMsg",`Caminhão ${$("#cPref").value.trim()} cadastrado.`);$("#cPref").value="";$("#cTrelas").value="";$("#cDesc").value="";$("#cPref").focus();await carregarCam();}
   catch(err){setMsg("#cMsg",msgErr(err),true);}});
 $("#fFrente").addEventListener("submit",async e=>{e.preventDefault();
   try{await rpc("molh_cam_salvar_frente",{p_token:token,p_id:null,p_nome:$("#frNome").value,p_ordem:Math.round(+$("#frOrdem").value||0)});
     setMsg("#frMsg","Frente cadastrada.");$("#frNome").value="";await carregarCam();}
   catch(err){setMsg("#frMsg",msgErr(err),true);}});
+function setTipo(t){soTipo=t;document.querySelectorAll("[data-sot]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.sot===t?"true":"false"));
+  $("#trTrelaBox").hidden=t!=="reboque";$("#trCamLbl").textContent=t==="reboque"?"Caminhão (se souber)":"Caminhão";
+  $("#trParado").checked=t==="caminhao";$("#trSave").textContent=t==="reboque"?"Registrar trela quebrada":"Registrar caminhão quebrado";atualizaHint();}
+function atualizaHint(){const h=$("#trHint"),tv=$("#trTrela").value.trim(),cv=$("#trCam").value.trim();let txt="",err=false;
+  const ct=soTipo==="reboque"?camPorTrela(tv):null,cc=camPorPref(cv);
+  if(ct)txt=`Trela ${tv} é do caminhão ${ct.prefixo}.`;
+  if(cv&&!cc&&cv.length>=4){txt=`Caminhão ${cv} não está cadastrado.`;err=true;}
+  else if(cc&&cc.frente_id!=null)txt=(txt?txt+" ":"")+`Caminhão ${cc.prefixo} está na ${frNome(cc.frente_id)}.`;
+  h.textContent=txt;h.classList.toggle("err",err);
+  $("#trParadoBox").hidden=!cc;}
+document.querySelectorAll("[data-sot]").forEach(b=>b.addEventListener("click",()=>setTipo(b.dataset.sot)));
+$("#trTrela").addEventListener("input",()=>{const c=camPorTrela($("#trTrela").value);const cam=$("#trCam");
+  if(c&&(!cam.value.trim()||cam.dataset.auto==="1")){cam.value=c.prefixo;cam.dataset.auto="1";if(!$("#trFrente").dataset.touched)$("#trFrente").value=c.frente_id!=null?String(c.frente_id):"";}
+  else if(!c&&cam.dataset.auto==="1"){cam.value="";cam.dataset.auto="";}
+  atualizaHint();});
+$("#trCam").addEventListener("input",()=>{const cam=$("#trCam");cam.dataset.auto="";const c=camPorPref(cam.value);
+  if(c&&!$("#trFrente").dataset.touched)$("#trFrente").value=c.frente_id!=null?String(c.frente_id):"";atualizaHint();});
+$("#trFrente").addEventListener("change",()=>{$("#trFrente").dataset.touched="1";});
 $("#fTrela").addEventListener("submit",async e=>{e.preventDefault();
-  const cam=$("#trCam").value,q=$("#trQuando").value;
-  if(!cam){setMsg("#trMsg","Cadastre os caminhões em Cadastros antes de registrar.",true);return;}
-  if(!$("#trLocal").value.trim()){setMsg("#trMsg",ERROS.LOCAL_VAZIO,true);$("#trLocal").focus();return;}
+  const q=$("#trQuando").value,cv=$("#trCam").value.trim(),tv=$("#trTrela").value.trim();
+  if(soTipo==="reboque"&&!tv){setMsg("#trMsg",ERROS.TRELA_VAZIA,true);$("#trTrela").focus();return;}
+  if(soTipo==="caminhao"&&!cv){setMsg("#trMsg",ERROS.CAMINHAO_VAZIO,true);$("#trCam").focus();return;}
+  if(cv&&!camPorPref(cv)){setMsg("#trMsg",`Caminhão ${cv} não está cadastrado. Confira o número ou cadastre em Cadastros.`,true);$("#trCam").focus();return;}
+  if(!$("#trMotivo").value.trim()){setMsg("#trMsg",ERROS.MOTIVO_VAZIO,true);$("#trMotivo").focus();return;}
   if(!q){setMsg("#trMsg","Informe a data e a hora.",true);return;}
   $("#trSave").disabled=true;
-  try{await rpc("molh_trela_registrar",{p_token:token,p_caminhao:+cam,p_trela:$("#trTrela").value,p_frente:$("#trFrente").value?+$("#trFrente").value:null,p_local:$("#trLocal").value,
-      p_motivo:$("#trMotivo").value,p_quando:new Date(q).toISOString(),p_responsavel:$("#trResp").value,p_obs:$("#trObs").value,p_marcar_parado:$("#trParado").checked});
+  try{await rpc("molh_socorro_registrar",{p_token:token,p_tipo:soTipo,p_trela:soTipo==="reboque"?tv:"",p_caminhao:cv,p_frente:$("#trFrente").value?+$("#trFrente").value:null,
+      p_local:$("#trLocal").value,p_motivo:$("#trMotivo").value,p_carga:$("#trCarga").value,p_quando:new Date(q).toISOString(),p_responsavel:$("#trResp").value,p_obs:$("#trObs").value,
+      p_marcar_parado:!!camPorPref(cv)&&$("#trParado").checked});
     lembrarResp($("#trResp").value);
-    setMsg("#trMsg",`Trela do ${camPref(+cam)} registrada.`);$("#trLocal").value="";$("#trObs").value="";$("#trQuando").value=toLocalInput(new Date());await carregarCam();}
+    setMsg("#trMsg",soTipo==="reboque"?`Trela ${tv} registrada.`:`Caminhão ${cv} registrado.`);
+    ["#trTrela","#trCam","#trMotivo","#trLocal","#trObs"].forEach(id=>{$(id).value="";});$("#trCam").dataset.auto="";$("#trFrente").dataset.touched="";$("#trFrente").value="";
+    $("#trQuando").value=toLocalInput(new Date());await carregarCam();atualizaHint();}
   catch(err){setMsg("#trMsg",msgErr(err),true);}
   finally{$("#trSave").disabled=false;}});
-$("#trCam").addEventListener("change",()=>{const c=byId(C.caminhoes,$("#trCam").value);$("#trFrente").value=c&&c.frente_id!=null?String(c.frente_id):"";});
+$("#relFechar").addEventListener("click",()=>{$("#relOv").hidden=true;});
+$("#relOv").addEventListener("click",e=>{if(e.target.id==="relOv")$("#relOv").hidden=true;});
+$("#relCopiar").addEventListener("click",async()=>{const t=$("#relTxt").value;
+  try{await navigator.clipboard.writeText(t);setMsg("#relMsg","Copiado. Cole no grupo do WhatsApp.");}
+  catch(e){$("#relTxt").select();try{document.execCommand("copy");setMsg("#relMsg","Copiado. Cole no grupo do WhatsApp.");}catch(x){setMsg("#relMsg","Selecione o texto e copie.",true);}}});
+document.addEventListener("click",e=>{if(e.target.closest("[data-rel]"))abrirRelatorio();});
 ["#trfCam","#trfMot"].forEach(id=>$(id).addEventListener("change",renderTrelas));
+setTipo("reboque");
 $("#trfPer").addEventListener("change",()=>{const d=+$("#trfPer").value;if(d>camDias){camDias=d;carregarCam();}else{camDias=d;renderTrelas();}});
 $("#camOv").addEventListener("click",async e=>{
   if(e.target.id==="camOv"||e.target.id==="camCancel"){fecharCam();return;}
@@ -1519,13 +1597,13 @@ $("#camOv").addEventListener("click",async e=>{
   if(e.target.id==="camOk")salvarCam();
 });
 $("#camOv").addEventListener("input",e=>{if(e.target.id==="camMotTxt"&&camSel){camSel.motivo=e.target.value.trim()||"Outro";}});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&camSel)fecharCam();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(camSel)fecharCam();$("#relOv").hidden=true;}});
 document.addEventListener("click",async e=>{
   const cm=e.target.closest("[data-cam]");if(cm){abrirCam(+cm.dataset.cam);return;}
   const rs=e.target.closest("[data-trres]");if(rs){abrirResolver(+rs.dataset.trres);return;}
   if(e.target.closest("[data-trback]")){trRes=null;renderTrelas();return;}
   const ok=e.target.closest("[data-trok]");if(ok){const q=$("#trrQuando").value;if(!q){setMsg("#trrMsg","Informe a data e a hora.",true);return;}ok.disabled=true;
-    try{await rpc("molh_trela_resolver",{p_token:token,p_id:+ok.dataset.trok,p_quando:new Date(q).toISOString(),p_solucao:$("#trrSol").value,p_status_caminhao:$("#trrSt").value||null});trRes=null;await carregarCam();}
+    try{await rpc("molh_trela_resolver",{p_token:token,p_id:+ok.dataset.trok,p_quando:new Date(q).toISOString(),p_solucao:$("#trrSol").value,p_status_caminhao:$("#trrSt")?($("#trrSt").value||null):null});trRes=null;await carregarCam();}
     catch(err){setMsg("#trrMsg",msgErr(err),true);ok.disabled=false;}return;}
   const td=e.target.closest("[data-trdel]");if(td){if(!td.classList.contains("armed")){td.classList.add("armed");td.textContent="Confirmar?";setTimeout(()=>{if(td.isConnected){td.classList.remove("armed");td.textContent="Excluir";}},3500);return;}
     td.disabled=true;try{await rpc("molh_trela_excluir",{p_token:token,p_id:+td.dataset.trdel});await carregarCam();}catch(err){td.disabled=false;td.textContent="Falhou";banner(esc(msgErr(err)));}return;}
