@@ -243,6 +243,8 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 .stbtn.parado[aria-pressed="true"]{border-color:var(--late);background:var(--late-soft);color:var(--late)}
 .stbtn.carregando[aria-pressed="true"]{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
 .stbtn.base[aria-pressed="true"]{border-color:var(--muted);background:var(--surface-2);color:var(--fg)}
+.stbtn.carregado[aria-pressed="true"]{border-color:var(--ok);background:var(--ok-soft);color:var(--ok)}
+.stbtn.vazio[aria-pressed="true"]{border-color:var(--water);background:var(--water-soft);color:var(--water)}
 #dKpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .chips.sm{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}
 .chips.sm .chip{min-height:40px;justify-content:center;text-align:center}
@@ -1542,7 +1544,7 @@ function renderDistribuicao(){
   const now=new Date(),reg=canReg(),cs=C.caminhoes.filter(c=>c.frente_id!=null),n=s=>cs.filter(c=>c.status===s).length;
   const ab=C.trelas.filter(t=>t.status==="aberta").length;
   $("#bCadCam").hidden=!reg;
-  $("#dNota").innerHTML=reg?"Digite a frota na frente e toque na situação. Toque no caminhão para mudar a situação, marcar que parou no trajeto ou tirar da frente.":"Acompanhamento: a situação é atualizada pelos operadores.";
+  $("#dNota").innerHTML=reg?"Digite a frota na frente e toque na situação. Toque no caminhão para mudar a situação (inclusive carregado/vazio parado), a observação ou tirar da frente.":"Acompanhamento: a situação é atualizada pelos operadores.";
   const abL=C.trelas.filter(t=>t.status==="aberta"),nCam=abL.filter(t=>t.tipo==="caminhao").length,nReb=abL.length-nCam;
   const emSoc=c=>abL.some(t=>t.tipo==="caminhao"&&t.caminhao_id===c.id);
   $("#dKpis").innerHTML=kpiH("Nas frentes (rodando)",cs.filter(c=>c.status!=="parado").length)+kpiH("Carregados",n("carregado"),"ok")+kpiH("Carregando",n("carregando"),"warn")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Na base",n("base"))+kpiH("Caminhões aguardando socorro",nCam,nCam?"late":"")+kpiH("Reboques aguardando socorro",nReb,nReb?"late":"");
@@ -1569,38 +1571,36 @@ function renderDistribuicao(){
     (h.length?h.map(x=>`<tr><td class="mono">${fmtDH(new Date(x.quando))}</td><td><b>${esc(camPref(x.caminhao_id))}</b></td><td>${esc(frNome(x.frente_id))}</td><td><span class="pill ${PILL_CAM[x.status]||"none"}">${ST_CAM[x.status]||esc(x.status)}</span></td><td>${esc(x.motivo||"—")}</td><td>${esc(x.por||"—")}</td></tr>`).join("")
     :`<tr><td colspan="6" style="color:var(--muted)">Nenhuma mudança nas últimas 24 horas.</td></tr>`)+"</tbody>";
 }
+const SIT_CAM=[["carregado","Carregado"],["carregando","Carregando"],["vazio","Vazio"],["base","Base"],["parado_carregado","Carregado parado"],["parado_vazio","Vazio parado"]];
+const OBS_CAM=["Trajeto solo úmido","Fiscalização","Outros"];
 function abrirCam(id){const c=byId(C.caminhoes,id);if(!c||!canReg())return;
-  const par=c.status==="parado";
-  camSel={id:c.id,frente:c.frente_id??null,status:par?(c.carga||"carregado"):c.status,parado:par,motivo:par?(c.motivo||""):"",local:par?(c.obs||""):"",motTxt:""};
-  if(par&&camSel.motivo&&!MOT_PARADA.includes(camSel.motivo)){camSel.motTxt=camSel.motivo;camSel.motivo="Outro";}
+  const par=c.status==="parado",txt=par?(c.motivo||""):(c.obs||"");
+  const ob=!txt?"":(OBS_CAM.includes(txt)&&txt!=="Outros"?txt:"Outros");
+  camSel={id:c.id,frente:c.frente_id??null,sit:par?"parado_"+(c.carga||"carregado"):c.status,ob,obTxt:ob==="Outros"?txt:"",local:par?(c.obs||""):""};
   renderCamBox();$("#camOv").hidden=false;}
 function fecharCam(){camSel=null;$("#camOv").hidden=true;$("#camBox").innerHTML="";}
 function renderCamBox(){const c=byId(C.caminhoes,camSel.id);if(!c){fecharCam();return;}
   const fr=[...C.frentes.map(f=>({id:f.id,nome:f.nome})),{id:null,nome:"Tirar da frente"}];
-  const sts=camSel.parado?["carregado","vazio"]:ST_LISTA;
-  $("#camBox").innerHTML=`<h2 id="camTit">${esc(c.prefixo)}<small>${ST_CAM[c.status]}${c.status==="parado"&&c.carga?" "+c.carga:""} há ${fmtDur((new Date()-new Date(c.status_desde))/6e4)} · ${esc(frNome(c.frente_id))}</small></h2>
-    <div class="grp"><span class="lb">${camSel.parado?"Parou como":"Situação"}</span><div class="stbtns" style="grid-template-columns:repeat(${sts.length},minmax(0,1fr))">${sts.map(s=>`<button type="button" class="stbtn ${s}" data-cst="${s}" aria-pressed="${camSel.status===s}">${ST_CAM[s]}</button>`).join("")}</div></div>
-    <div class="grp"><button type="button" class="stbtn parado" id="camParado" aria-pressed="${camSel.parado}" style="min-height:46px">${camSel.parado?"Parado no trajeto ✓":"Parou no trajeto"}</button>
-      ${camSel.parado?`<span class="lb">Por que parou</span><div class="chips sm">${MOT_PARADA.map(m=>`<button type="button" class="chip" data-cmot="${esc(m)}" aria-pressed="${camSel.motivo===m}">${m}</button>`).join("")}</div>
-        ${camSel.motivo==="Outro"?`<input id="camMotTxt" maxlength="80" placeholder="Digite o motivo" value="${esc(camSel.motTxt)}">`:""}
-        <span class="lb">Local (ponto de referência)</span><input id="camLocal" maxlength="120" placeholder="Ex.: Venda Amarela" value="${esc(camSel.local)}">
-        <p class="hint">Quebra ou manutenção vão na aba <b>Socorro</b>.</p>`:""}</div>
+  const par=camSel.sit.startsWith("parado_");
+  $("#camBox").innerHTML=`<h2 id="camTit">${esc(c.prefixo)}<small>${c.status==="parado"?"Parado "+(c.carga||""):ST_CAM[c.status]} há ${fmtDur((new Date()-new Date(c.status_desde))/6e4)} · ${esc(frNome(c.frente_id))}</small></h2>
+    <div class="grp"><span class="lb">Situação</span><div class="stbtns">${SIT_CAM.map(([k,l])=>`<button type="button" class="stbtn ${k.startsWith("parado_")?"parado":k}" data-csit="${k}" aria-pressed="${camSel.sit===k}">${l}</button>`).join("")}</div></div>
+    <div class="grp"><span class="lb">Observação</span><div class="chips sm">${OBS_CAM.map(o=>`<button type="button" class="chip" data-cob="${o}" aria-pressed="${camSel.ob===o}">${o}</button>`).join("")}</div>
+      ${camSel.ob==="Outros"?`<input id="camObTxt" maxlength="80" placeholder="Digite a observação" value="${esc(camSel.obTxt)}">`:""}
+      ${par?`<input id="camLocal" maxlength="120" placeholder="Local / ponto de referência (ex.: Venda Amarela)" value="${esc(camSel.local)}">`:""}</div>
     <div class="grp"><span class="lb">Frente</span><div class="chips sm">${fr.map(f=>`<button type="button" class="chip" data-cfr="${f.id??""}" aria-pressed="${(camSel.frente??null)===f.id}">${esc(f.nome)}</button>`).join("")}</div></div>
     <div class="actions"><button class="btn big" type="button" id="camOk">Salvar</button><button class="btn ghost big" type="button" id="camCancel">Cancelar</button><span class="msg" id="camMsg" role="status"></span></div>`;
 }
-async function salvarCam(){const btn=$("#camOk");const s=camSel;
-  if(s.parado){const mot=s.motivo==="Outro"?s.motTxt.trim():s.motivo;
-    if(!mot){setMsg("#camMsg",s.motivo==="Outro"?"Digite o motivo da parada.":"Escolha por que parou.",true);return;}
-    if(!s.local.trim()){setMsg("#camMsg","Informe o local (ponto de referência).",true);$("#camLocal")&&$("#camLocal").focus();return;}
-    btn.disabled=true;
-    try{await rpc("molh_cam_status",{p_token:token,p_id:s.id,p_frente:s.frente,p_status:"parado",p_motivo:mot});
-      await rpc("molh_cam_carga",{p_token:token,p_id:s.id,p_carga:s.status});
-      await rpc("molh_cam_obs",{p_token:token,p_id:s.id,p_obs:s.local.trim()});
-      fecharCam();await carregarCam();}
-    catch(e){setMsg("#camMsg",msgErr(e),true);btn.disabled=false;}
-    return;}
+async function salvarCam(){const btn=$("#camOk"),s=camSel,par=s.sit.startsWith("parado_");
+  const ob=s.ob==="Outros"?s.obTxt.trim():s.ob;
+  if(s.ob==="Outros"&&!ob){setMsg("#camMsg","Digite a observação.",true);$("#camObTxt")&&$("#camObTxt").focus();return;}
   btn.disabled=true;
-  try{await rpc("molh_cam_status",{p_token:token,p_id:s.id,p_frente:s.frente,p_status:s.status,p_motivo:""});fecharCam();await carregarCam();}
+  try{
+    if(par){await rpc("molh_cam_status",{p_token:token,p_id:s.id,p_frente:s.frente,p_status:"parado",p_motivo:ob});
+      await rpc("molh_cam_carga",{p_token:token,p_id:s.id,p_carga:s.sit.slice(7)});
+      await rpc("molh_cam_obs",{p_token:token,p_id:s.id,p_obs:s.local.trim()});}
+    else{await rpc("molh_cam_status",{p_token:token,p_id:s.id,p_frente:s.frente,p_status:s.sit,p_motivo:""});
+      await rpc("molh_cam_obs",{p_token:token,p_id:s.id,p_obs:ob});}
+    fecharCam();await carregarCam();}
   catch(e){setMsg("#camMsg",msgErr(e),true);btn.disabled=false;}
 }
 function renderTrelas(){
@@ -1777,13 +1777,12 @@ setTipo("reboque");
 $("#trfPer").addEventListener("change",()=>{const d=+$("#trfPer").value;if(d>camDias){camDias=d;carregarCam();}else{camDias=d;renderTrelas();}});
 $("#camOv").addEventListener("click",async e=>{
   if(e.target.id==="camOv"||e.target.id==="camCancel"){fecharCam();return;}
-  if(e.target.closest("#camParado")){camSel.parado=!camSel.parado;if(camSel.parado&&!["carregado","vazio"].includes(camSel.status))camSel.status="carregado";renderCamBox();if(camSel.parado)$("#camBox").scrollTop=$("#camBox").scrollHeight;return;}
-  const st=e.target.closest("[data-cst]");if(st){camSel.status=st.dataset.cst;renderCamBox();return;}
-  const mt=e.target.closest("[data-cmot]");if(mt){camSel.motivo=mt.dataset.cmot;renderCamBox();if(camSel.motivo==="Outro"&&$("#camMotTxt"))$("#camMotTxt").focus();return;}
+  const st=e.target.closest("[data-csit]");if(st){camSel.sit=st.dataset.csit;renderCamBox();if(camSel.sit.startsWith("parado_")&&$("#camLocal"))$("#camLocal").focus();return;}
+  const ob=e.target.closest("[data-cob]");if(ob){camSel.ob=camSel.ob===ob.dataset.cob?"":ob.dataset.cob;renderCamBox();if(camSel.ob==="Outros"&&$("#camObTxt"))$("#camObTxt").focus();return;}
   const fr=e.target.closest("[data-cfr]");if(fr){camSel.frente=fr.dataset.cfr===""?null:+fr.dataset.cfr;renderCamBox();return;}
   if(e.target.id==="camOk")salvarCam();
 });
-$("#camOv").addEventListener("input",e=>{if(!camSel)return;if(e.target.id==="camMotTxt")camSel.motTxt=e.target.value;if(e.target.id==="camLocal")camSel.local=e.target.value;});
+$("#camOv").addEventListener("input",e=>{if(!camSel)return;if(e.target.id==="camObTxt")camSel.obTxt=e.target.value;if(e.target.id==="camLocal")camSel.local=e.target.value;});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(camSel)fecharCam();$("#relOv").hidden=true;$("#txtOv").hidden=true;}});
 document.addEventListener("click",async e=>{
   const cm=e.target.closest("[data-cam]");if(cm){abrirCam(+cm.dataset.cam);return;}
