@@ -208,7 +208,7 @@ tr:last-child td{border-bottom:0}
 .tiles.compact .tile{grid-template-columns:1fr;padding:6px 8px}
 .tiles.compact .tile .tp{font-size:19px}
 .hint{margin:0;font-size:13px;color:var(--muted)} .hint.err{color:var(--late)}
-#relTxt{font-family:var(--mono);font-size:13px;min-height:320px}
+
 .kpi.ok .val{color:var(--ok)} .kpi.vz .val{color:var(--water)}
 .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;align-items:start}
 .fcol{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -378,7 +378,7 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 
   <!-- CAMINHÕES POR FRENTE -->
   <section id="v-caminhoes" class="sec" hidden>
-    <div class="sec-head"><h2>Caminhões por frente</h2><span class="note" id="dNota"></span><button class="btn small" type="button" data-rel="1" style="margin-left:auto">Relatório para o WhatsApp</button></div>
+    <div class="sec-head"><h2>Caminhões por frente</h2><span class="note" id="dNota"></span><button class="btn small" type="button" data-rel="1" style="margin-left:auto">Relatório (imagem)</button></div>
     <div class="kpis" id="dKpis"></div>
     <div class="board" id="board"></div>
     <div class="sec-head" style="margin-top:8px"><h2>Mudanças nas últimas 24 horas</h2><span class="note">Cada troca de frente ou de situação.</span></div>
@@ -387,7 +387,7 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 
   <!-- AGUARDANDO SOCORRO (trelas e caminhões quebrados) -->
   <section id="v-trelas" class="sec" hidden>
-    <div class="sec-head"><h2>Aguardando socorro</h2><span class="note">Reboques (trelas) e caminhões que quebraram no trajeto: onde, por quê e quanto tempo ficaram parados.</span><button class="btn small" type="button" data-rel="1" style="margin-left:auto">Relatório para o WhatsApp</button></div>
+    <div class="sec-head"><h2>Aguardando socorro</h2><span class="note">Reboques (trelas) e caminhões que quebraram no trajeto: onde, por quê e quanto tempo ficaram parados.</span><button class="btn small" type="button" data-rel="1" style="margin-left:auto">Relatório (imagem)</button></div>
     <div class="kpis" id="trKpis"></div>
     <div class="grid" id="trAbertas"></div>
     <div class="sec" id="trRegBox" hidden>
@@ -470,11 +470,12 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
       </div>
     </div>
   </section>
-  <div class="ov" id="relOv" hidden><div class="ovbox" role="dialog" aria-modal="true" aria-labelledby="relTit">
-    <h2 id="relTit">Relatório para o WhatsApp</h2>
-    <p class="hint">Mesmo formato do relatório que era montado à mão. Copie e cole no grupo, ou toque em <b>Abrir no WhatsApp</b>.</p>
-    <textarea id="relTxt" readonly></textarea>
-    <div class="actions"><button class="btn" type="button" id="relCopiar">Copiar</button><a class="btn ghost" id="relWa" target="_blank" rel="noopener" style="text-decoration:none">Abrir no WhatsApp</a><button class="btn ghost" type="button" id="relFechar">Fechar</button><span class="msg" id="relMsg" role="status"></span></div>
+  <div class="ov" id="relOv" hidden><div class="ovbox" role="dialog" aria-modal="true" aria-labelledby="relTit" style="width:min(760px,100%)">
+    <h2 id="relTit">Relatório de caminhões e socorro</h2>
+    <p class="hint">Distribuição por frente e o que está aguardando socorro numa imagem só, no mesmo estilo da imagem do painel. Envie no grupo do WhatsApp.</p>
+    <span class="msg" id="relMsg" role="status"></span>
+    <img id="relImg" alt="Prévia do relatório" hidden style="width:100%;border:1px solid var(--line);border-radius:8px;background:#fff">
+    <div class="actions"><button class="btn" type="button" id="relShare" hidden>Compartilhar (WhatsApp)</button><button class="btn" type="button" id="relBaixar">Baixar imagem</button><button class="btn ghost" type="button" id="relCopiar">Copiar em texto</button><button class="btn ghost" type="button" id="relFechar">Fechar</button></div>
   </div></div>
   <div class="ov" id="camOv" hidden><div class="ovbox" id="camBox" role="dialog" aria-modal="true" aria-labelledby="camTit"></div></div>
 
@@ -996,6 +997,103 @@ async function exportarPainelPng(){
   finally{b.disabled=false;b.textContent=txt;}
 }
 
+/* ---------- imagem consolidada: distribuição por frente + aguardando socorro (estilo do painel) ---------- */
+async function imagemCaminhoes(){
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+  const now=new Date();
+  const dataHora=pad(now.getDate())+"/"+pad(now.getMonth()+1)+"/"+now.getFullYear()+" "+fmtHM(now);
+  const INK=[20,32,48],MUTED=[90,106,128],NAVY=[22,38,61],LINE=[214,222,232];
+  const COR={carregado:[31,138,76],vazio:[31,111,209],parado:[194,58,58]};
+  const SOFT={carregado:[220,242,228],vazio:[219,233,250],parado:[248,221,221]};
+  const ab=C.trelas.filter(t=>t.status==="aberta").sort((a,b)=>new Date(a.quebrou_em)-new Date(b.quebrou_em));
+  const nasFrentes=C.caminhoes.filter(c=>c.frente_id!=null);
+  const par=C.caminhoes.filter(c=>c.status==="parado"&&!/^Aguardando socorro/i.test(c.motivo||"")&&!ab.some(t=>t.tipo==="caminhao"&&t.caminhao_id===c.id));
+  const frentes=C.frentes.map(f=>({f,l:nasFrentes.filter(c=>c.frente_id===f.id&&c.status!=="parado").sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo))})).filter(x=>x.l.length);
+  const desenhar=PH=>{
+    const doc=novoDoc(210,PH),PW=doc.internal.pageSize.getWidth(),M=10,P=3.5;
+    // cabeçalho
+    doc.setFillColor(...NAVY);doc.rect(0,0,PW,16,"F");
+    doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text("Caminhões e socorro",M,10.5);
+    doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text("Gerado em "+dataHora+(perfil&&perfil.nome?" por "+perfil.nome:""),PW-M,10.5,{align:"right"});
+    let y=21;
+    // indicadores
+    const n=s=>nasFrentes.filter(c=>c.status===s).length;
+    const kp=[["Nas frentes",nasFrentes.filter(c=>c.status!=="parado").length,INK],["Carregados",n("carregado"),COR.carregado],["Vazios",n("vazio"),COR.vazio],["Aguardando socorro",ab.length,ab.length?COR.parado:INK],["Parados",par.length,par.length?COR.parado:INK]];
+    const kw=(PW-2*M-4*3)/5;
+    kp.forEach(([l,v,cor],k)=>{const x=M+k*(kw+3);doc.setFillColor(255,255,255);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(x,y,kw,14,2,2,"FD");
+      doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(...MUTED);doc.text(l.toUpperCase(),x+3,y+4.6);
+      doc.setFont("helvetica","bold");doc.setFontSize(15);doc.setTextColor(...cor);doc.text(String(v),x+3,y+11.6);});
+    y+=20;
+    const secao=(titulo,nota)=>{doc.setTextColor(...INK);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(titulo,M,y+3);
+      if(nota){doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...MUTED);doc.text(nota,M,y+7.5);y+=12;}else y+=7;};
+    const vazio=t=>{doc.setFillColor(244,247,251);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(M,y,PW-2*M,9,2,2,"FD");
+      doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(...MUTED);doc.text(t,M+P,y+5.8);y+=9+6;};
+    // distribuição por frente
+    secao("DISTRIBUIÇÃO POR FRENTE","Verde: carregado · azul: vazio.");
+    if(!frentes.length)vazio("Nenhum caminhão lançado nas frentes.");
+    else{
+      const cols=3,gap=4,cw=(PW-2*M-gap*(cols-1))/cols,chW=11.4,chH=6.4,chG=1.6,porLinha=Math.max(1,Math.floor((cw-2*P+chG)/(chW+chG)));
+      const alt=frentes.map(x=>12.5+Math.ceil(x.l.length/porLinha)*(chH+chG)+P-chG);
+      frentes.forEach((x,k)=>{const col=k%cols;if(col===0&&k>0)y+=Math.max(...alt.slice(k-cols,k))+gap;
+        const ch=Math.max(...alt.slice(k-col,k-col+cols)),cx=M+col*(cw+gap);
+        doc.setFillColor(255,255,255);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(cx,y,cw,ch,2,2,"FD");
+        doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...INK);doc.text(x.f.nome.toUpperCase(),cx+P,y+6);
+        doc.setFontSize(12);doc.setTextColor(...MUTED);doc.text(String(x.l.length),cx+cw-P,y+6.2,{align:"right"});
+        const nc=x.l.filter(c=>c.status==="carregado").length,nv=x.l.length-nc;
+        doc.setFont("helvetica","normal");doc.setFontSize(6.5);
+        let lx=cx+P;[[nc,"carregado"],[nv,"vazio"]].forEach(([v,s])=>{doc.setFillColor(...COR[s]);doc.circle(lx+1,y+9.3,0.9,"F");doc.setTextColor(...MUTED);
+          const t=v+" "+(s==="carregado"?(v===1?"carregado":"carregados"):(v===1?"vazio":"vazios"));doc.text(t,lx+2.6,y+10);lx+=doc.getTextWidth(t)+6;});
+        x.l.forEach((c,i)=>{const r=Math.floor(i/porLinha),q=i%porLinha,bx=cx+P+q*(chW+chG),by=y+12.5+r*(chH+chG);
+          doc.setFillColor(...SOFT[c.status]);doc.roundedRect(bx,by,chW,chH,1.4,1.4,"F");
+          doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(...COR[c.status]);doc.text(c.prefixo,bx+chW/2,by+4.4,{align:"center"});});
+      });
+      y+=Math.max(...alt.slice(Math.floor((frentes.length-1)/cols)*cols))+7;
+    }
+    // aguardando socorro
+    const linhas=(itens,titulo)=>{
+      if(!itens.length)return;
+      doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(...MUTED);doc.text(titulo.toUpperCase(),M,y+3);y+=5.5;
+      const cols=2,gap=4,cw=(PW-2*M-gap)/cols,h=13.5;
+      itens.forEach((it,k)=>{const col=k%cols;if(col===0&&k>0)y+=h+3;const cx=M+col*(cw+gap);
+        doc.setFillColor(252,240,240);doc.setDrawColor(...COR.parado);doc.setLineWidth(0.3);doc.roundedRect(cx,y,cw,h,2,2,"FD");
+        doc.setFillColor(...COR.parado);doc.rect(cx,y+1,1.4,h-2,"F");
+        doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.setTextColor(...INK);doc.text(it.titulo,cx+P+1,y+5.6);
+        doc.setFontSize(5.8);const pill=(it.pill||"").toUpperCase();if(pill){const pw=Math.min(doc.getTextWidth(pill)+4,cw*0.5);
+          doc.setFillColor(...SOFT.parado);doc.roundedRect(cx+cw-P-pw,y+2.4,pw,4.2,2.1,2.1,"F");doc.setTextColor(...COR.parado);doc.text(doc.splitTextToSize(pill,pw-2)[0],cx+cw-P-pw/2,y+5.3,{align:"center"});}
+        doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...MUTED);doc.text(doc.splitTextToSize(it.sub,cw-2*P-1)[0],cx+P+1,y+10.4);
+      });
+      y+=h+6;};
+    secao("AGUARDANDO SOCORRO ("+ab.length+")","Reboques (trelas) e caminhões quebrados no trajeto, do mais antigo para o mais recente.");
+    if(!ab.length)vazio("Nenhum reboque ou caminhão aguardando socorro.");
+    else{
+      const ha=t=>"há "+fmtDur((now-new Date(t.quebrou_em))/6e4);
+      const ordF=t=>{const i=C.frentes.findIndex(f=>f.id===t.frente_id);return i<0?999:i;};
+      linhas(ab.filter(t=>t.tipo!=="caminhao").sort((a,b)=>ordF(a)-ordF(b)).map(t=>({titulo:"Trela "+(t.trela||"?"),pill:capit(t.motivo),
+        sub:[frNome(t.frente_id),cargaTxt(t),t.caminhao_id?"caminhão "+camPref(t.caminhao_id):"",ha(t),t.local].filter(Boolean).join(" · ")})),"Reboque");
+      linhas(ab.filter(t=>t.tipo==="caminhao").sort((a,b)=>ordF(a)-ordF(b)).map(t=>({titulo:"Caminhão "+camPref(t.caminhao_id),pill:capit(t.motivo),
+        sub:[frNome(t.frente_id),cargaTxt(t),ha(t),t.local].filter(Boolean).join(" · ")})),"Caminhão");
+    }
+    if(par.length){secao("PARADOS ("+par.length+")","");
+      linhas(par.map(c=>({titulo:"Caminhão "+c.prefixo,pill:c.motivo||"Parado",sub:[c.frente_id!=null?frNome(c.frente_id):"",
+        "há "+fmtDur((now-new Date(c.status_desde))/6e4)].filter(Boolean).join(" · ")})),"");}
+    const fim=y;
+    doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(120);
+    doc.text("Desenvolvido por João Vitor - CRV",M,PH-5);doc.text("Controle de Poeira · "+dataHora,PW-M,PH-5,{align:"right"});
+    return {doc,fim};};
+  const {doc}=desenhar(Math.ceil(desenhar(5000).fim)+6);
+  return {blob:await pdfParaPng(doc,1600),nome:"caminhoes-e-socorro_"+carimbo(now)+".png"};
+}
+let relImg=null;
+async function abrirRelatorio(){
+  $("#relOv").hidden=false;setMsg("#relMsg","Gerando imagem…");$("#relImg").hidden=true;["#relBaixar","#relShare"].forEach(id=>$(id).disabled=true);
+  try{relImg=await imagemCaminhoes();if($("#relImg").src)URL.revokeObjectURL($("#relImg").src);
+    $("#relImg").src=URL.createObjectURL(relImg.blob);$("#relImg").hidden=false;setMsg("#relMsg","");
+    $("#relBaixar").disabled=false;
+    const arq=new File([relImg.blob],relImg.nome,{type:"image/png"});
+    const pode=!!(navigator.canShare&&navigator.canShare({files:[arq]}));$("#relShare").hidden=!pode;$("#relShare").disabled=!pode;}
+  catch(e){setMsg("#relMsg","Não foi possível gerar a imagem. "+msgErr(e),true);}
+}
+
 let chegando=null,chegVal="";
 function renderTrips(now,ativos){
   const reg=canReg();$("#bNovaSaida").hidden=!reg;
@@ -1422,7 +1520,8 @@ function renderDistribuicao(){
   const now=new Date(),reg=canReg(),cs=C.caminhoes.filter(c=>c.frente_id!=null),n=s=>cs.filter(c=>c.status===s).length;
   const ab=C.trelas.filter(t=>t.status==="aberta").length;
   $("#dNota").innerHTML=reg?"Digite a frota na frente e toque em <b>Carregado</b> ou <b>Vazio</b>. Toque no caminhão para mudar a situação ou tirar da frente.":"Acompanhamento: a situação é atualizada pelos operadores.";
-  $("#dKpis").innerHTML=kpiH("Caminhões nas frentes",cs.length)+kpiH("Carregados",n("carregado"),"ok")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Parados",n("parado"),n("parado")?"late":"")+kpiH("Aguardando socorro",ab,ab?"late":"");
+  const abL=C.trelas.filter(t=>t.status==="aberta"),parL=C.caminhoes.filter(c=>c.status==="parado"&&!/^Aguardando socorro/i.test(c.motivo||"")&&!abL.some(t=>t.tipo==="caminhao"&&t.caminhao_id===c.id)).length;
+  $("#dKpis").innerHTML=kpiH("Nas frentes",cs.length-n("parado"))+kpiH("Carregados",n("carregado"),"ok")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Aguardando socorro",ab,ab?"late":"")+kpiH("Parados",parL,parL?"late":"");
   const foco=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.addfr:null;
   if(!C.ok){$("#board").innerHTML=`<div class="empty">Não foi possível carregar os caminhões. Tente atualizar a página.</div>`;}
   else if(!C.frentes.length){$("#board").innerHTML=`<div class="empty">Nenhuma frente cadastrada.${reg?" Cadastre as frentes em <b>Cadastros</b>.":""}</div>`;}
@@ -1514,7 +1613,6 @@ function textoRelatorio(){
   L.push("Atualizado em "+fmtDH(now));
   return L.join("\n");
 }
-function abrirRelatorio(){const t=textoRelatorio();$("#relTxt").value=t;$("#relWa").href="https://wa.me/?text="+encodeURIComponent(t);setMsg("#relMsg","");$("#relOv").hidden=false;}
 function abrirResolver(id){const t=C.trelas.find(x=>x.id===id);if(!t)return;trRes=id;
   const card=document.querySelector(`[data-trres="${id}"]`).closest("article");
   card.querySelector(".actions").outerHTML=`<div class="form" style="grid-template-columns:1fr;padding:12px">
@@ -1594,9 +1692,13 @@ $("#fTrela").addEventListener("submit",async e=>{e.preventDefault();
   finally{$("#trSave").disabled=false;}});
 $("#relFechar").addEventListener("click",()=>{$("#relOv").hidden=true;});
 $("#relOv").addEventListener("click",e=>{if(e.target.id==="relOv")$("#relOv").hidden=true;});
-$("#relCopiar").addEventListener("click",async()=>{const t=$("#relTxt").value;
-  try{await navigator.clipboard.writeText(t);setMsg("#relMsg","Copiado. Cole no grupo do WhatsApp.");}
-  catch(e){$("#relTxt").select();try{document.execCommand("copy");setMsg("#relMsg","Copiado. Cole no grupo do WhatsApp.");}catch(x){setMsg("#relMsg","Selecione o texto e copie.",true);}}});
+$("#relCopiar").addEventListener("click",async()=>{const t=textoRelatorio();
+  try{await navigator.clipboard.writeText(t);setMsg("#relMsg","Texto copiado. Cole no grupo do WhatsApp.");}
+  catch(e){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();
+    try{document.execCommand("copy");setMsg("#relMsg","Texto copiado. Cole no grupo do WhatsApp.");}catch(x){setMsg("#relMsg","Não foi possível copiar.",true);}ta.remove();}});
+$("#relBaixar").addEventListener("click",()=>{if(relImg)baixarArquivo(relImg.blob,relImg.nome);});
+$("#relShare").addEventListener("click",async()=>{if(!relImg)return;
+  try{await navigator.share({files:[new File([relImg.blob],relImg.nome,{type:"image/png"})],title:"Caminhões e socorro"});}catch(e){}});
 document.addEventListener("click",e=>{if(e.target.closest("[data-rel]"))abrirRelatorio();});
 async function addCam(frId,st){
   const inp=document.querySelector(`[data-addfr="${frId}"]`),msg=document.querySelector(`[data-addmsg="${frId}"]`);
