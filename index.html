@@ -1018,12 +1018,13 @@ async function imagemCaminhoes(){
     let y=21;
     // indicadores
     const n=s=>nasFrentes.filter(c=>c.status===s).length;
-    const kp=[["Nas frentes",nasFrentes.filter(c=>c.status!=="parado").length,INK],["Carregados",n("carregado"),COR.carregado],["Vazios",n("vazio"),COR.vazio],["Aguardando socorro",ab.length,ab.length?COR.parado:INK],["Parados",par.length,par.length?COR.parado:INK]];
+    const nCam=ab.filter(t=>t.tipo==="caminhao").length,nReb=ab.length-nCam;
+    const kp=[["Nas frentes",nasFrentes.filter(c=>c.status!=="parado").length,INK],["Carregados",n("carregado"),COR.carregado],["Vazios",n("vazio"),COR.vazio],["Caminhões aguardando socorro",nCam,nCam?COR.parado:INK],["Reboques aguardando socorro",nReb,nReb?COR.parado:INK]];
     const kw=(PW-2*M-4*3)/5;
-    kp.forEach(([l,v,cor],k)=>{const x=M+k*(kw+3);doc.setFillColor(255,255,255);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(x,y,kw,14,2,2,"FD");
-      doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(...MUTED);doc.text(l.toUpperCase(),x+3,y+4.6);
-      doc.setFont("helvetica","bold");doc.setFontSize(15);doc.setTextColor(...cor);doc.text(String(v),x+3,y+11.6);});
-    y+=20;
+    kp.forEach(([l,v,cor],k)=>{const x=M+k*(kw+3);doc.setFillColor(255,255,255);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(x,y,kw,17,2,2,"FD");
+      doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(...MUTED);doc.splitTextToSize(l.toUpperCase(),kw-6).slice(0,2).forEach((ln,i)=>doc.text(ln,x+3,y+4.6+i*2.9));
+      doc.setFont("helvetica","bold");doc.setFontSize(15);doc.setTextColor(...cor);doc.text(String(v),x+3,y+14.4);});
+    y+=23;
     const secao=(titulo,nota)=>{doc.setTextColor(...INK);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(titulo,M,y+3);
       if(nota){doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...MUTED);doc.text(nota,M,y+7.5);y+=12;}else y+=7;};
     const vazio=t=>{doc.setFillColor(244,247,251);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(M,y,PW-2*M,9,2,2,"FD");
@@ -1073,9 +1074,6 @@ async function imagemCaminhoes(){
       linhas(ab.filter(t=>t.tipo==="caminhao").sort((a,b)=>ordF(a)-ordF(b)).map(t=>({titulo:"Caminhão "+camPref(t.caminhao_id),pill:capit(t.motivo),
         sub:[frNome(t.frente_id),cargaTxt(t),ha(t),t.local].filter(Boolean).join(" · ")})),"Caminhão");
     }
-    if(par.length){secao("PARADOS ("+par.length+")","");
-      linhas(par.map(c=>({titulo:"Caminhão "+c.prefixo,pill:c.motivo||"Parado",sub:[c.frente_id!=null?frNome(c.frente_id):"",
-        "há "+fmtDur((now-new Date(c.status_desde))/6e4)].filter(Boolean).join(" · ")})),"");}
     const fim=y;
     doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(120);
     doc.text("Desenvolvido por João Vitor - CRV",M,PH-5);doc.text("Controle de Poeira · "+dataHora,PW-M,PH-5,{align:"right"});
@@ -1520,8 +1518,8 @@ function renderDistribuicao(){
   const now=new Date(),reg=canReg(),cs=C.caminhoes.filter(c=>c.frente_id!=null),n=s=>cs.filter(c=>c.status===s).length;
   const ab=C.trelas.filter(t=>t.status==="aberta").length;
   $("#dNota").innerHTML=reg?"Digite a frota na frente e toque em <b>Carregado</b> ou <b>Vazio</b>. Toque no caminhão para mudar a situação ou tirar da frente.":"Acompanhamento: a situação é atualizada pelos operadores.";
-  const abL=C.trelas.filter(t=>t.status==="aberta"),parL=C.caminhoes.filter(c=>c.status==="parado"&&!/^Aguardando socorro/i.test(c.motivo||"")&&!abL.some(t=>t.tipo==="caminhao"&&t.caminhao_id===c.id)).length;
-  $("#dKpis").innerHTML=kpiH("Nas frentes",cs.length-n("parado"))+kpiH("Carregados",n("carregado"),"ok")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Aguardando socorro",ab,ab?"late":"")+kpiH("Parados",parL,parL?"late":"");
+  const abL=C.trelas.filter(t=>t.status==="aberta"),nCam=abL.filter(t=>t.tipo==="caminhao").length,nReb=abL.length-nCam;
+  $("#dKpis").innerHTML=kpiH("Nas frentes",cs.length-n("parado"))+kpiH("Carregados",n("carregado"),"ok")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Caminhões aguardando socorro",nCam,nCam?"late":"")+kpiH("Reboques aguardando socorro",nReb,nReb?"late":"");
   const foco=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.addfr:null;
   if(!C.ok){$("#board").innerHTML=`<div class="empty">Não foi possível carregar os caminhões. Tente atualizar a página.</div>`;}
   else if(!C.frentes.length){$("#board").innerHTML=`<div class="empty">Nenhuma frente cadastrada.${reg?" Cadastre as frentes em <b>Cadastros</b>.":""}</div>`;}
@@ -1601,8 +1599,6 @@ function textoRelatorio(){
   L.push("Distribuição dos caminhões","");
   C.frentes.forEach(f=>{const l=C.caminhoes.filter(c=>c.frente_id===f.id&&c.status!=="parado").sort((a,b)=>abcN(a.prefixo,b.prefixo));
     if(l.length)L.push(f.nome,...l.map(c=>c.prefixo),"");});
-  const par=C.caminhoes.filter(c=>c.status==="parado"&&!/^Aguardando socorro/i.test(c.motivo||"")&&!ab.some(t=>t.tipo==="caminhao"&&t.caminhao_id===c.id));
-  if(par.length)L.push("Parados",...par.map(c=>[c.prefixo,(c.motivo||"").toLowerCase(),c.frente_id!=null?frNome(c.frente_id):""].filter(Boolean).join(" - ")),"");
   L.push("Aguardando socorro","");
   const rb=ab.filter(t=>t.tipo!=="caminhao"),cm=ab.filter(t=>t.tipo==="caminhao");
   if(!ab.length)L.push("Nenhum","");
