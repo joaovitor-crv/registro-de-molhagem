@@ -238,3 +238,5 @@ alter table molh_trelas add column if not exists carga text not null default '';
 
 -- 25/11/2026 (3ª parte): situações carregando e base, observação do caminhão (molh_cam_obs),
 -- observação limpa ao mudar situação/frente. Migração no Supabase: molh_caminhoes_carregando_base_obs.
+-- 25/11/2026 (4ª parte): carga do caminhão parado (carregado/vazio) em molh_caminhoes.carga, molh_cam_carga;
+-- molh_cam_status limpa obs e carga ao mudar situação/frente. Migração: molh_caminhoes_carga_parado.

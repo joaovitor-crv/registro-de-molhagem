@@ -1047,7 +1047,8 @@ async function imagemCaminhoes(){
     else{
       const cols=3,gap=4,cw=(PW-2*M-gap*(cols-1))/cols,chW=11.4,chH=6.4,chG=1.6,porLinha=Math.max(1,Math.floor((cw-2*P+chG)/(chW+chG)));
       const obsDe=x=>x.l.filter(c=>c.obs||(c.status==="parado"&&c.motivo)).map(c=>{const so=c.status==="parado"?socDoCam(c):null;
-        return c.prefixo+": "+[...(so?["parado "+(so.carga||"")].concat(partesSocorro(so).slice(1)):[c.status==="parado"&&c.motivo?c.motivo:""]),c.obs].filter(Boolean).join(" · ");});
+        if(so)return c.prefixo+": "+[("parado "+(so.carga||"")).trim(),(so.tipo!=="caminhao"?"trela "+(so.trela||"?")+" ":"")+String(so.motivo||"").toLowerCase(),so.local].filter(Boolean).join(" · ");
+        return c.prefixo+": "+[c.status==="parado"?("parado "+(c.carga||"")).trim():"",c.status==="parado"?c.motivo:"",c.obs].filter(Boolean).join(" · ");});
       doc.setFont("helvetica","normal");doc.setFontSize(6.5);
       const obsL=frentes.map(x=>obsDe(x).flatMap(t=>doc.splitTextToSize(t,cw-2*P)));
       const alt=frentes.map((x,k)=>12.5+Math.ceil(x.l.length/porLinha)*(chH+chG)+P-chG+(obsL[k].length?1.5+obsL[k].length*2.9:0));
@@ -1499,7 +1500,7 @@ const ST_LISTA=["carregado","carregando","vazio","base"];
 const ST_PLURAL={carregado:["carregado","carregados"],carregando:["carregando","carregando"],vazio:["vazio","vazios"],base:["na base","na base"],parado:["parado","parados"]};
 const PILL_CAM={carregado:"ok",carregando:"warn",vazio:"trajeto",base:"none",parado:"late"};
 const ORD_CAM={parado:0,carregado:1,carregando:2,vazio:3,base:4};
-const MOT_PARADA=["Trajeto","Solo úmido","Fiscalização","Acidente","Outro"];
+const MOT_PARADA=["Trajeto solo úmido","Fiscalização","Acidente","Outro"];
 const MOT_TRELA=["Pneu furado","Vazamento de ar","Engate / pino-rei","Mangueira de ar / freio","Elétrica / iluminação","Suspensão / eixo","Rolamento / cubo","Quebra mecânica","Saiu da estrada / tombou"];
 let soTipo="reboque";
 const trelasDe=c=>String(c&&c.trelas||"").split(/[\s,;\/]+/).map(x=>x.trim()).filter(Boolean);
@@ -1541,7 +1542,7 @@ function renderDistribuicao(){
   const now=new Date(),reg=canReg(),cs=C.caminhoes.filter(c=>c.frente_id!=null),n=s=>cs.filter(c=>c.status===s).length;
   const ab=C.trelas.filter(t=>t.status==="aberta").length;
   $("#bCadCam").hidden=!reg;
-  $("#dNota").innerHTML=reg?"Digite a frota na frente e toque na situação. Toque no caminhão para mudar a situação, colocar uma observação ou tirar da frente.":"Acompanhamento: a situação é atualizada pelos operadores.";
+  $("#dNota").innerHTML=reg?"Digite a frota na frente e toque na situação. Toque no caminhão para mudar a situação, marcar que parou no trajeto ou tirar da frente.":"Acompanhamento: a situação é atualizada pelos operadores.";
   const abL=C.trelas.filter(t=>t.status==="aberta"),nCam=abL.filter(t=>t.tipo==="caminhao").length,nReb=abL.length-nCam;
   const emSoc=c=>abL.some(t=>t.tipo==="caminhao"&&t.caminhao_id===c.id);
   $("#dKpis").innerHTML=kpiH("Nas frentes (rodando)",cs.filter(c=>c.status!=="parado").length)+kpiH("Carregados",n("carregado"),"ok")+kpiH("Carregando",n("carregando"),"warn")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Na base",n("base"))+kpiH("Caminhões aguardando socorro",nCam,nCam?"late":"")+kpiH("Reboques aguardando socorro",nReb,nReb?"late":"");
@@ -1559,7 +1560,7 @@ function renderDistribuicao(){
           <p class="hint addmsg" data-addmsg="${col.id}"></p>`:""}
         <div class="tiles">${l.length?l.map(c=>{const tag=reg?"button":"div";
           return `<${tag} ${reg?`type="button" data-cam="${c.id}" aria-label="Alterar ${esc(c.prefixo)}"`:""} class="tile st-${c.status}"><span class="tp">${esc(c.prefixo)}</span><span class="pill ${PILL_CAM[c.status]}">${ST_CAM[c.status]}</span>
-            <span class="tt">há ${fmtDur((now-new Date(c.status_desde))/6e4)}${c.status==="parado"&&c.motivo?" · "+esc(c.motivo):""}</span>${c.obs?`<span class="ob">Obs.: ${esc(c.obs)}</span>`:""}</${tag}>`;}).join(""):`<p class="vz-txt">Nenhum caminhão.</p>`}</div></section>`;}).join("");
+            <span class="tt">há ${fmtDur((now-new Date(c.status_desde))/6e4)}${c.status==="parado"?[c.carga,c.motivo].filter(Boolean).map(x=>" · "+esc(x)).join(""):""}</span>${c.obs?`<span class="ob">${c.status==="parado"?"Local":"Obs."}: ${esc(c.obs)}</span>`:""}</${tag}>`;}).join(""):`<p class="vz-txt">Nenhum caminhão.</p>`}</div></section>`;}).join("");
     if(foco!=null){const el=document.querySelector(`[data-addfr="${foco}"]`);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
     if(focoObs!=null){const el=document.querySelector(`[data-addobs="${focoObs}"]`);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
   }
@@ -1569,27 +1570,37 @@ function renderDistribuicao(){
     :`<tr><td colspan="6" style="color:var(--muted)">Nenhuma mudança nas últimas 24 horas.</td></tr>`)+"</tbody>";
 }
 function abrirCam(id){const c=byId(C.caminhoes,id);if(!c||!canReg())return;
-  camSel={id:c.id,frente:c.frente_id??null,status:c.status,motivo:c.motivo||"",obs:c.obs||""};renderCamBox();$("#camOv").hidden=false;}
+  const par=c.status==="parado";
+  camSel={id:c.id,frente:c.frente_id??null,status:par?(c.carga||"carregado"):c.status,parado:par,motivo:par?(c.motivo||""):"",local:par?(c.obs||""):"",motTxt:""};
+  if(par&&camSel.motivo&&!MOT_PARADA.includes(camSel.motivo)){camSel.motTxt=camSel.motivo;camSel.motivo="Outro";}
+  renderCamBox();$("#camOv").hidden=false;}
 function fecharCam(){camSel=null;$("#camOv").hidden=true;$("#camBox").innerHTML="";}
 function renderCamBox(){const c=byId(C.caminhoes,camSel.id);if(!c){fecharCam();return;}
   const fr=[...C.frentes.map(f=>({id:f.id,nome:f.nome})),{id:null,nome:"Tirar da frente"}];
-  const outro=camSel.motivo&&!MOT_PARADA.includes(camSel.motivo);
-  $("#camBox").innerHTML=`<h2 id="camTit">${esc(c.prefixo)}<small>${ST_CAM[c.status]} há ${fmtDur((new Date()-new Date(c.status_desde))/6e4)} · ${esc(frNome(c.frente_id))}${trelasDe(c).length?" · trelas "+esc(trelasDe(c).join(", ")):""}</small></h2>
-    <div class="grp"><span class="lb">Situação</span><div class="stbtns">${["carregado","carregando","vazio","base","parado"].map(s=>`<button type="button" class="stbtn ${s}" data-cst="${s}" aria-pressed="${camSel.status===s}">${ST_CAM[s]}</button>`).join("")}</div></div>
-    ${camSel.status==="parado"?`<div class="grp"><span class="lb">Motivo da parada</span><div class="chips sm">${MOT_PARADA.map(m=>`<button type="button" class="chip" data-cmot="${esc(m)}" aria-pressed="${camSel.motivo===m||(m==="Outro"&&outro)}">${m}</button>`).join("")}</div>
-      ${outro||camSel.motivo==="Outro"?`<input id="camMotTxt" maxlength="80" placeholder="Descreva o motivo" value="${esc(outro?camSel.motivo:"")}">`:""}</div>`:""}
-    <div class="grp"><span class="lb">Observação</span><input id="camObs" maxlength="120" placeholder="Ex.: parado carregado, aguardando mecânico" value="${esc(camSel.obs)}">
-      <div class="chips sm">${["Parado carregado","Parado vazio","Aguardando mecânico","Limpar"].map(o=>`<button type="button" class="chip" data-cobs="${o}">${o}</button>`).join("")}</div></div>
+  const sts=camSel.parado?["carregado","vazio"]:ST_LISTA;
+  $("#camBox").innerHTML=`<h2 id="camTit">${esc(c.prefixo)}<small>${ST_CAM[c.status]}${c.status==="parado"&&c.carga?" "+c.carga:""} há ${fmtDur((new Date()-new Date(c.status_desde))/6e4)} · ${esc(frNome(c.frente_id))}</small></h2>
+    <div class="grp"><span class="lb">${camSel.parado?"Parou como":"Situação"}</span><div class="stbtns" style="grid-template-columns:repeat(${sts.length},minmax(0,1fr))">${sts.map(s=>`<button type="button" class="stbtn ${s}" data-cst="${s}" aria-pressed="${camSel.status===s}">${ST_CAM[s]}</button>`).join("")}</div></div>
+    <div class="grp"><button type="button" class="stbtn parado" id="camParado" aria-pressed="${camSel.parado}" style="min-height:46px">${camSel.parado?"Parado no trajeto ✓":"Parou no trajeto"}</button>
+      ${camSel.parado?`<span class="lb">Por que parou</span><div class="chips sm">${MOT_PARADA.map(m=>`<button type="button" class="chip" data-cmot="${esc(m)}" aria-pressed="${camSel.motivo===m}">${m}</button>`).join("")}</div>
+        ${camSel.motivo==="Outro"?`<input id="camMotTxt" maxlength="80" placeholder="Digite o motivo" value="${esc(camSel.motTxt)}">`:""}
+        <span class="lb">Local (ponto de referência)</span><input id="camLocal" maxlength="120" placeholder="Ex.: Venda Amarela" value="${esc(camSel.local)}">
+        <p class="hint">Quebra ou manutenção vão na aba <b>Socorro</b>.</p>`:""}</div>
     <div class="grp"><span class="lb">Frente</span><div class="chips sm">${fr.map(f=>`<button type="button" class="chip" data-cfr="${f.id??""}" aria-pressed="${(camSel.frente??null)===f.id}">${esc(f.nome)}</button>`).join("")}</div></div>
     <div class="actions"><button class="btn big" type="button" id="camOk">Salvar</button><button class="btn ghost big" type="button" id="camCancel">Cancelar</button><span class="msg" id="camMsg" role="status"></span></div>`;
 }
-async function salvarCam(){const btn=$("#camOk");let mot=camSel.motivo;
-  const t=$("#camMotTxt");if(camSel.status==="parado"&&(mot==="Outro"||(t&&!MOT_PARADA.includes(mot))))mot=t?t.value.trim()||"Outro":"Outro";
+async function salvarCam(){const btn=$("#camOk");const s=camSel;
+  if(s.parado){const mot=s.motivo==="Outro"?s.motTxt.trim():s.motivo;
+    if(!mot){setMsg("#camMsg",s.motivo==="Outro"?"Digite o motivo da parada.":"Escolha por que parou.",true);return;}
+    if(!s.local.trim()){setMsg("#camMsg","Informe o local (ponto de referência).",true);$("#camLocal")&&$("#camLocal").focus();return;}
+    btn.disabled=true;
+    try{await rpc("molh_cam_status",{p_token:token,p_id:s.id,p_frente:s.frente,p_status:"parado",p_motivo:mot});
+      await rpc("molh_cam_carga",{p_token:token,p_id:s.id,p_carga:s.status});
+      await rpc("molh_cam_obs",{p_token:token,p_id:s.id,p_obs:s.local.trim()});
+      fecharCam();await carregarCam();}
+    catch(e){setMsg("#camMsg",msgErr(e),true);btn.disabled=false;}
+    return;}
   btn.disabled=true;
-  try{await rpc("molh_cam_status",{p_token:token,p_id:camSel.id,p_frente:camSel.frente,p_status:camSel.status,p_motivo:camSel.status==="parado"?mot:""});
-    const ob=($("#camObs")?$("#camObs").value:camSel.obs).trim();const c=byId(C.caminhoes,camSel.id);
-    if(ob!==(c&&c.obs||"")||(c&&(c.status!==camSel.status||(c.frente_id??null)!==camSel.frente)&&ob))await rpc("molh_cam_obs",{p_token:token,p_id:camSel.id,p_obs:ob});
-    fecharCam();await carregarCam();}
+  try{await rpc("molh_cam_status",{p_token:token,p_id:s.id,p_frente:s.frente,p_status:s.status,p_motivo:""});fecharCam();await carregarCam();}
   catch(e){setMsg("#camMsg",msgErr(e),true);btn.disabled=false;}
 }
 function renderTrelas(){
@@ -1631,7 +1642,9 @@ function textoRelatorio(){
   const socCam=new Set(ab.filter(t=>t.tipo==="caminhao").map(t=>t.caminhao_id));
   C.frentes.forEach(f=>{const l=C.caminhoes.filter(c=>c.frente_id===f.id).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo));
     if(l.length)L.push(f.nome+" - total "+l.filter(c=>c.status!=="parado").length,...l.map(c=>{const so=c.status==="parado"?socDoCam(c):null;
-      return [c.prefixo,ST_CAM[c.status].toLowerCase(),...(so?partesSocorro(so):[c.status==="parado"&&c.motivo?c.motivo.toLowerCase():""]),c.obs].filter(Boolean).join(" - ");}),"");});
+      if(c.status!=="parado")return [c.prefixo,ST_CAM[c.status].toLowerCase(),c.obs].filter(Boolean).join(" - ");
+      if(so)return [c.prefixo,("parado "+(so.carga||"")).trim(),(so.tipo!=="caminhao"?"trela "+(so.trela||"?")+" ":"")+String(so.motivo||"").toLowerCase(),so.local].filter(Boolean).join(" - ");
+      return [c.prefixo,("parado "+(c.carga||"")).trim(),c.motivo,c.obs].filter(Boolean).join(" - ");}),"");});
   L.push("Aguardando socorro","");
   const rb=ab.filter(t=>t.tipo!=="caminhao"),cm=ab.filter(t=>t.tipo==="caminhao");
   if(!ab.length)L.push("Nenhum","");
@@ -1764,13 +1777,13 @@ setTipo("reboque");
 $("#trfPer").addEventListener("change",()=>{const d=+$("#trfPer").value;if(d>camDias){camDias=d;carregarCam();}else{camDias=d;renderTrelas();}});
 $("#camOv").addEventListener("click",async e=>{
   if(e.target.id==="camOv"||e.target.id==="camCancel"){fecharCam();return;}
-  const st=e.target.closest("[data-cst]");if(st){camSel.status=st.dataset.cst;if(st.dataset.cst!=="parado")camSel.motivo="";renderCamBox();return;}
+  if(e.target.closest("#camParado")){camSel.parado=!camSel.parado;if(camSel.parado&&!["carregado","vazio"].includes(camSel.status))camSel.status="carregado";renderCamBox();if(camSel.parado)$("#camBox").scrollTop=$("#camBox").scrollHeight;return;}
+  const st=e.target.closest("[data-cst]");if(st){camSel.status=st.dataset.cst;renderCamBox();return;}
   const mt=e.target.closest("[data-cmot]");if(mt){camSel.motivo=mt.dataset.cmot;renderCamBox();if(camSel.motivo==="Outro"&&$("#camMotTxt"))$("#camMotTxt").focus();return;}
   const fr=e.target.closest("[data-cfr]");if(fr){camSel.frente=fr.dataset.cfr===""?null:+fr.dataset.cfr;renderCamBox();return;}
-  const co=e.target.closest("[data-cobs]");if(co){camSel.obs=co.dataset.cobs==="Limpar"?"":co.dataset.cobs;const i=$("#camObs");if(i){i.value=camSel.obs;i.focus();}return;}
   if(e.target.id==="camOk")salvarCam();
 });
-$("#camOv").addEventListener("input",e=>{if(e.target.id==="camMotTxt"&&camSel){camSel.motivo=e.target.value.trim()||"Outro";}if(e.target.id==="camObs"&&camSel)camSel.obs=e.target.value;});
+$("#camOv").addEventListener("input",e=>{if(!camSel)return;if(e.target.id==="camMotTxt")camSel.motTxt=e.target.value;if(e.target.id==="camLocal")camSel.local=e.target.value;});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(camSel)fecharCam();$("#relOv").hidden=true;$("#txtOv").hidden=true;}});
 document.addEventListener("click",async e=>{
   const cm=e.target.closest("[data-cam]");if(cm){abrirCam(+cm.dataset.cam);return;}
