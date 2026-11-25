@@ -1031,7 +1031,7 @@ async function imagemCaminhoes(){
     // indicadores
     const n=s=>nasFrentes.filter(c=>c.status===s).length;
     const nCam=ab.filter(t=>t.tipo==="caminhao").length,nReb=ab.length-nCam;
-    const kp=[["Nas frentes",nasFrentes.length,INK],["Carregados",n("carregado"),COR.carregado],["Carregando",n("carregando"),COR.carregando],["Vazios",n("vazio"),COR.vazio],["Na base",n("base"),COR.base],["Caminhões aguardando socorro",nCam,nCam?COR.parado:INK],["Reboques aguardando socorro",nReb,nReb?COR.parado:INK]];
+    const kp=[["Nas frentes (rodando)",nasFrentes.filter(c=>c.status!=="parado").length,INK],["Carregados",n("carregado"),COR.carregado],["Carregando",n("carregando"),COR.carregando],["Vazios",n("vazio"),COR.vazio],["Na base",n("base"),COR.base],["Caminhões aguardando socorro",nCam,nCam?COR.parado:INK],["Reboques aguardando socorro",nReb,nReb?COR.parado:INK]];
     const kw=(PW-2*M-(kp.length-1)*2.5)/kp.length;
     kp.forEach(([l,v,cor],k)=>{const x=M+k*(kw+2.5);doc.setFillColor(255,255,255);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(x,y,kw,19.5,2,2,"FD");
       doc.setFont("helvetica","normal");doc.setFontSize(6.3);doc.setTextColor(...MUTED);doc.splitTextToSize(l.toUpperCase(),kw-5).slice(0,3).forEach((ln,i)=>doc.text(ln,x+2.5,y+4.4+i*2.7));
@@ -1055,7 +1055,7 @@ async function imagemCaminhoes(){
         const ch=Math.max(...alt.slice(k-col,k-col+cols)),cx=M+col*(cw+gap);
         doc.setFillColor(255,255,255);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(cx,y,cw,ch,2,2,"FD");
         doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...INK);doc.text(x.f.nome.toUpperCase(),cx+P,y+6);
-        doc.setFontSize(12);doc.setTextColor(...MUTED);doc.text(String(x.l.length),cx+cw-P,y+6.2,{align:"right"});
+        doc.setFontSize(12);doc.setTextColor(...MUTED);doc.text(String(x.l.filter(c=>c.status!=="parado").length),cx+cw-P,y+6.2,{align:"right"});
         doc.setFont("helvetica","normal");doc.setFontSize(6.3);
         let lx=cx+P;["carregado","carregando","vazio","base","parado"].map(st=>[x.l.filter(c=>c.status===st).length,st]).filter(([v])=>v).forEach(([v,st])=>{
           const t=v+" "+ST_PLURAL[st][v===1?0:1];if(lx+2.6+doc.getTextWidth(t)>cx+cw-P)return;
@@ -1544,7 +1544,7 @@ function renderDistribuicao(){
   $("#dNota").innerHTML=reg?"Digite a frota na frente e toque na situação. Toque no caminhão para mudar a situação, colocar uma observação ou tirar da frente.":"Acompanhamento: a situação é atualizada pelos operadores.";
   const abL=C.trelas.filter(t=>t.status==="aberta"),nCam=abL.filter(t=>t.tipo==="caminhao").length,nReb=abL.length-nCam;
   const emSoc=c=>abL.some(t=>t.tipo==="caminhao"&&t.caminhao_id===c.id);
-  $("#dKpis").innerHTML=kpiH("Nas frentes",cs.length)+kpiH("Carregados",n("carregado"),"ok")+kpiH("Carregando",n("carregando"),"warn")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Na base",n("base"))+kpiH("Caminhões aguardando socorro",nCam,nCam?"late":"")+kpiH("Reboques aguardando socorro",nReb,nReb?"late":"");
+  $("#dKpis").innerHTML=kpiH("Nas frentes (rodando)",cs.filter(c=>c.status!=="parado").length)+kpiH("Carregados",n("carregado"),"ok")+kpiH("Carregando",n("carregando"),"warn")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Na base",n("base"))+kpiH("Caminhões aguardando socorro",nCam,nCam?"late":"")+kpiH("Reboques aguardando socorro",nReb,nReb?"late":"");
   const ae=document.activeElement,foco=ae&&ae.dataset?ae.dataset.addfr:null,focoObs=ae&&ae.dataset?ae.dataset.addobs:null;
   if(!C.ok){$("#board").innerHTML=`<div class="empty">Não foi possível carregar os caminhões. Tente atualizar a página.</div>`;}
   else if(!C.frentes.length){$("#board").innerHTML=`<div class="empty">Nenhuma frente cadastrada.${reg?" Cadastre as frentes em <b>Cadastros</b>.":""}</div>`;}
@@ -1552,7 +1552,7 @@ function renderDistribuicao(){
     $("#board").innerHTML=C.frentes.map(col=>{
       const l=cs.filter(c=>c.frente_id===col.id).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo));
       const k=s=>l.filter(c=>c.status===s).length;
-      return `<section class="fcol"><div class="fcol-h"><h3>${esc(col.nome)}</h3><span class="cnt">${l.length}</span></div>
+      return `<section class="fcol"><div class="fcol-h"><h3>${esc(col.nome)}</h3><span class="cnt" title="Rodando (sem os parados)">${l.filter(c=>c.status!=="parado").length}</span></div>
         <div class="fcol-s">${[["carregado","ok"],["carregando","cg"],["vazio","vz"],["base","bs"],["parado","late"]].filter(([st])=>k(st)||st==="carregado"||st==="vazio").map(([st,cl])=>`<span><i class="d ${cl}"></i>${k(st)} ${ST_PLURAL[st][k(st)===1?0:1]}</span>`).join("")}</div>
         ${reg?`<div class="addcam"><input data-addfr="${col.id}" inputmode="numeric" maxlength="20" autocomplete="off" placeholder="Frota" aria-label="Frota para a ${esc(col.nome)}" value="${esc(addVal[col.id]||"")}">
           <button type="button" class="btn small ok" data-addst="carregado" data-fr="${col.id}">Carregado</button><button type="button" class="btn small cg" data-addst="carregando" data-fr="${col.id}">Carregando</button><button type="button" class="btn small vz" data-addst="vazio" data-fr="${col.id}">Vazio</button><button type="button" class="btn small bs" data-addst="base" data-fr="${col.id}">Base</button></div>
@@ -1630,7 +1630,7 @@ function textoRelatorio(){
   L.push("Distribuição dos caminhões","");
   const socCam=new Set(ab.filter(t=>t.tipo==="caminhao").map(t=>t.caminhao_id));
   C.frentes.forEach(f=>{const l=C.caminhoes.filter(c=>c.frente_id===f.id).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo));
-    if(l.length)L.push(f.nome+" - total "+l.length,...l.map(c=>{const so=c.status==="parado"?socDoCam(c):null;
+    if(l.length)L.push(f.nome+" - total "+l.filter(c=>c.status!=="parado").length,...l.map(c=>{const so=c.status==="parado"?socDoCam(c):null;
       return [c.prefixo,ST_CAM[c.status].toLowerCase(),...(so?partesSocorro(so):[c.status==="parado"&&c.motivo?c.motivo.toLowerCase():""]),c.obs].filter(Boolean).join(" - ");}),"");});
   L.push("Aguardando socorro","");
   const rb=ab.filter(t=>t.tipo!=="caminhao"),cm=ab.filter(t=>t.tipo==="caminhao");
