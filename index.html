@@ -1755,7 +1755,12 @@ $("#camOv").addEventListener("input",e=>{if(e.target.id==="camMotTxt"&&camSel){c
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(camSel)fecharCam();$("#relOv").hidden=true;}});
 document.addEventListener("click",async e=>{
   const cm=e.target.closest("[data-cam]");if(cm){abrirCam(+cm.dataset.cam);return;}
-  const rs=e.target.closest("[data-trres]");if(rs){abrirResolver(+rs.dataset.trres);return;}
+  const rs=e.target.closest("[data-trres]");if(rs){
+    if(!rs.classList.contains("armed")){rs.classList.add("armed","danger");rs.textContent="Confirmar resolvido?";setTimeout(()=>{if(rs.isConnected){rs.classList.remove("armed","danger");rs.textContent="Resolvido";}},3500);return;}
+    const t=C.trelas.find(x=>x.id===+rs.dataset.trres);if(!t)return;rs.disabled=true;rs.textContent="Resolvendo…";
+    try{await rpc("molh_trela_resolver",{p_token:token,p_id:t.id,p_quando:new Date().toISOString(),p_solucao:"",p_status_caminhao:t.caminhao_id?(t.carga||"vazio"):null});await carregarCam();}
+    catch(err){rs.disabled=false;rs.classList.remove("armed","danger");rs.textContent="Resolvido";banner(esc(msgErr(err)));}
+    return;}
   if(e.target.closest("[data-trback]")){trRes=null;renderTrelas();return;}
   const ok=e.target.closest("[data-trok]");if(ok){const q=$("#trrQuando").value;if(!q){setMsg("#trrMsg","Informe a data e a hora.",true);return;}ok.disabled=true;
     try{await rpc("molh_trela_resolver",{p_token:token,p_id:+ok.dataset.trok,p_quando:new Date(q).toISOString(),p_solucao:$("#trrSol").value,p_status_caminhao:$("#trrSt")?($("#trrSt").value||null):null});trRes=null;await carregarCam();}
