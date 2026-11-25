@@ -1510,7 +1510,7 @@ const unidade=t=>t.tipo==="caminhao"?"Caminhão "+camPref(t.caminhao_id):"Trela 
 const capit=x=>{x=String(x||"").trim();return x?x[0].toUpperCase()+x.slice(1):x;};
 const socDoCam=c=>{const ab=C.trelas.filter(t=>t.status==="aberta"&&t.caminhao_id===c.id);return ab.find(t=>t.tipo==="caminhao")||ab[0]||null;};
 /* partes da linha de um caminhão parado aguardando socorro: carga, motivo e local */
-const partesSocorro=t=>[t.carga||"","aguardando socorro: "+(t.tipo!=="caminhao"?"trela "+(t.trela||"?")+" ":"")+String(t.motivo||"").toLowerCase(),t.local?"local: "+t.local:""];
+const partesSocorro=t=>[t.carga||"",(t.tipo!=="caminhao"?"trela "+(t.trela||"?")+" ":"")+String(t.motivo||"").toLowerCase(),t.local||""];
 const abcN=(x,y)=>String(x||"").localeCompare(String(y||""),"pt-BR",{numeric:true,sensitivity:"base"});
 const camPref=id=>{const c=C.todos.find(x=>x.id===id);return c?c.prefixo:"—";};
 const frNome=id=>{if(id==null)return "Sem frente";const f=C.frTodas.find(x=>x.id===id);return f?f.nome:"—";};
@@ -1637,8 +1637,8 @@ function textoRelatorio(){
   if(!ab.length)L.push("Nenhum","");
   if(rb.length){L.push("Reboque","");
     [...C.frentes.map(f=>f.id),null].forEach(id=>{const l=rb.filter(t=>(t.frente_id??null)===id);if(!l.length)return;
-      L.push(frNome(id),...l.map(t=>"Trela "+(t.trela||"?")+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.local?"local: "+t.local:""].filter(Boolean).join(" - ")),"");});}
-  if(cm.length)L.push("Caminhão",...cm.map(t=>camPref(t.caminhao_id)+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.frente_id!=null?frNome(t.frente_id):"",t.local?"local: "+t.local:""].filter(Boolean).join(" - ")),"");
+      L.push(frNome(id),...l.map(t=>"Trela "+(t.trela||"?")+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.local||""].filter(Boolean).join(" - ")),"");});}
+  if(cm.length)L.push("Caminhão",...cm.map(t=>camPref(t.caminhao_id)+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.frente_id!=null?frNome(t.frente_id):"",t.local||""].filter(Boolean).join(" - ")),"");
   return L.join("\n").replace(/\n+$/,"");
 }
 function abrirResolver(id){const t=C.trelas.find(x=>x.id===id);if(!t)return;trRes=id;
