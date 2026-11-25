@@ -199,6 +199,11 @@ tr:last-child td{border-bottom:0}
 /* caminhões por frente e trelas quebradas */
 .stbtn.tipo[aria-pressed="true"]{border-color:var(--water);background:var(--water-soft);color:var(--water)}
 .fcol.wide{grid-column:span 2}@media (max-width:560px){.fcol.wide{grid-column:auto}}
+.addcam{display:flex;gap:6px;align-items:stretch}
+.addcam input{flex:1 1 70px;min-width:0;font-family:var(--display);font-size:20px;font-weight:600;padding:6px 10px;letter-spacing:.02em}
+.addcam .btn{padding:6px 10px;white-space:nowrap}
+.btn.ok{background:var(--ok);border-color:var(--ok)} .btn.vz{background:var(--water);border-color:var(--water)}
+.addmsg:empty{display:none}
 .tiles.compact{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px}
 .tiles.compact .tile{grid-template-columns:1fr;padding:6px 8px}
 .tiles.compact .tile .tp{font-size:19px}
@@ -1412,22 +1417,29 @@ function renderCamSelects(){
   const fm=$("#trfMot"),mv=fm.value;const usados=[...new Set(C.trelas.map(t=>capit(t.motivo)).filter(Boolean))].sort(abcN);
   fm.innerHTML=`<option value="">Todos</option>`+usados.map(m=>`<option>${esc(m)}</option>`).join("");if([...fm.options].some(o=>o.value===mv))fm.value=mv;
 }
+const addVal={};let addFoco=null;
 function renderDistribuicao(){
-  const now=new Date(),reg=canReg(),cs=C.caminhoes,n=s=>cs.filter(c=>c.status===s).length;
+  const now=new Date(),reg=canReg(),cs=C.caminhoes.filter(c=>c.frente_id!=null),n=s=>cs.filter(c=>c.status===s).length;
   const ab=C.trelas.filter(t=>t.status==="aberta").length;
-  $("#dNota").innerHTML=reg?"Toque no caminhão para trocar a frente ou a situação.":"Acompanhamento: a situação é atualizada pelos operadores.";
-  $("#dKpis").innerHTML=kpiH("Caminhões",cs.length)+kpiH("Carregados",n("carregado"),"ok")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Parados",n("parado"),n("parado")?"late":"")+kpiH("Aguardando socorro",ab,ab?"late":"");
+  $("#dNota").innerHTML=reg?"Digite a frota na frente e toque em <b>Carregado</b> ou <b>Vazio</b>. Toque no caminhão para mudar a situação ou tirar da frente.":"Acompanhamento: a situação é atualizada pelos operadores.";
+  $("#dKpis").innerHTML=kpiH("Caminhões nas frentes",cs.length)+kpiH("Carregados",n("carregado"),"ok")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Parados",n("parado"),n("parado")?"late":"")+kpiH("Aguardando socorro",ab,ab?"late":"");
+  const foco=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.addfr:null;
   if(!C.ok){$("#board").innerHTML=`<div class="empty">Não foi possível carregar os caminhões. Tente atualizar a página.</div>`;}
-  else if(!cs.length){$("#board").innerHTML=`<div class="empty">Nenhum caminhão cadastrado ainda.${reg?" Cadastre os caminhões em <b>Cadastros</b>.":""}</div>`;}
-  else{const cols=[...C.frentes.map(f=>({id:f.id,nome:f.nome})),{id:null,nome:"Sem frente"}];
-    $("#board").innerHTML=cols.map(col=>{
-      const l=cs.filter(c=>(c.frente_id??null)===col.id).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo));
-      if(col.id===null&&!l.length)return "";const k=s=>l.filter(c=>c.status===s).length;
-      return `<section class="fcol${col.id===null&&l.length>6?" wide":""}"><div class="fcol-h"><h3>${esc(col.nome)}</h3><span class="cnt">${l.length}</span></div>
+  else if(!C.frentes.length){$("#board").innerHTML=`<div class="empty">Nenhuma frente cadastrada.${reg?" Cadastre as frentes em <b>Cadastros</b>.":""}</div>`;}
+  else{
+    $("#board").innerHTML=C.frentes.map(col=>{
+      const l=cs.filter(c=>c.frente_id===col.id).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo));
+      const k=s=>l.filter(c=>c.status===s).length;
+      return `<section class="fcol"><div class="fcol-h"><h3>${esc(col.nome)}</h3><span class="cnt">${l.length}</span></div>
         <div class="fcol-s"><span><i class="d ok"></i>${k("carregado")} carregado${k("carregado")===1?"":"s"}</span><span><i class="d vz"></i>${k("vazio")} vazio${k("vazio")===1?"":"s"}</span><span><i class="d late"></i>${k("parado")} parado${k("parado")===1?"":"s"}</span></div>
-        <div class="tiles${col.id===null&&l.length>6?" compact":""}">${l.length?l.map(c=>{const tag=reg?"button":"div";
-          return `<${tag} ${reg?`type="button" data-cam="${c.id}" aria-label="Alterar ${esc(c.prefixo)}"`:""} class="tile st-${c.status}"><span class="tp">${esc(c.prefixo)}</span>${col.id===null&&l.length>6?"":`<span class="pill ${PILL_CAM[c.status]}">${ST_CAM[c.status]}</span>`}
-            ${col.id===null&&l.length>6?"":`<span class="tt">há ${fmtDur((now-new Date(c.status_desde))/6e4)}${c.status==="parado"&&c.motivo?" · "+esc(c.motivo):""}</span>`}</${tag}>`;}).join(""):`<p class="vz-txt">Nenhum caminhão.</p>`}</div></section>`;}).join("");}
+        ${reg?`<div class="addcam"><input data-addfr="${col.id}" inputmode="numeric" maxlength="20" autocomplete="off" placeholder="Frota" aria-label="Frota para a ${esc(col.nome)}" value="${esc(addVal[col.id]||"")}">
+          <button type="button" class="btn small ok" data-addst="carregado" data-fr="${col.id}">Carregado</button><button type="button" class="btn small vz" data-addst="vazio" data-fr="${col.id}">Vazio</button></div>
+          <p class="hint addmsg" data-addmsg="${col.id}"></p>`:""}
+        <div class="tiles">${l.length?l.map(c=>{const tag=reg?"button":"div";
+          return `<${tag} ${reg?`type="button" data-cam="${c.id}" aria-label="Alterar ${esc(c.prefixo)}"`:""} class="tile st-${c.status}"><span class="tp">${esc(c.prefixo)}</span><span class="pill ${PILL_CAM[c.status]}">${ST_CAM[c.status]}</span>
+            <span class="tt">há ${fmtDur((now-new Date(c.status_desde))/6e4)}${c.status==="parado"&&c.motivo?" · "+esc(c.motivo):""}</span></${tag}>`;}).join(""):`<p class="vz-txt">Nenhum caminhão.</p>`}</div></section>`;}).join("");
+    if(foco!=null){const el=document.querySelector(`[data-addfr="${foco}"]`);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
+  }
   const h=C.hist.slice(0,80);
   $("#dHist").innerHTML=`<thead><tr><th>Quando</th><th>Caminhão</th><th>Frente</th><th>Situação</th><th>Motivo</th><th>Por</th></tr></thead><tbody>`+
     (h.length?h.map(x=>`<tr><td class="mono">${fmtDH(new Date(x.quando))}</td><td><b>${esc(camPref(x.caminhao_id))}</b></td><td>${esc(frNome(x.frente_id))}</td><td><span class="pill ${PILL_CAM[x.status]||"none"}">${ST_CAM[x.status]||esc(x.status)}</span></td><td>${esc(x.motivo||"—")}</td><td>${esc(x.por||"—")}</td></tr>`).join("")
@@ -1437,7 +1449,7 @@ function abrirCam(id){const c=byId(C.caminhoes,id);if(!c||!canReg())return;
   camSel={id:c.id,frente:c.frente_id??null,status:c.status,motivo:c.motivo||""};renderCamBox();$("#camOv").hidden=false;}
 function fecharCam(){camSel=null;$("#camOv").hidden=true;$("#camBox").innerHTML="";}
 function renderCamBox(){const c=byId(C.caminhoes,camSel.id);if(!c){fecharCam();return;}
-  const fr=[...C.frentes.map(f=>({id:f.id,nome:f.nome})),{id:null,nome:"Sem frente"}];
+  const fr=[...C.frentes.map(f=>({id:f.id,nome:f.nome})),{id:null,nome:"Tirar da frente"}];
   const outro=camSel.motivo&&!MOT_PARADA.includes(camSel.motivo);
   $("#camBox").innerHTML=`<h2 id="camTit">${esc(c.prefixo)}<small>${ST_CAM[c.status]} há ${fmtDur((new Date()-new Date(c.status_desde))/6e4)} · ${esc(frNome(c.frente_id))}${trelasDe(c).length?" · trelas "+esc(trelasDe(c).join(", ")):""}</small></h2>
     <div class="grp"><span class="lb">Situação</span><div class="stbtns">${["carregado","vazio","parado"].map(s=>`<button type="button" class="stbtn ${s}" data-cst="${s}" aria-pressed="${camSel.status===s}">${ST_CAM[s]}</button>`).join("")}</div></div>
@@ -1586,6 +1598,22 @@ $("#relCopiar").addEventListener("click",async()=>{const t=$("#relTxt").value;
   try{await navigator.clipboard.writeText(t);setMsg("#relMsg","Copiado. Cole no grupo do WhatsApp.");}
   catch(e){$("#relTxt").select();try{document.execCommand("copy");setMsg("#relMsg","Copiado. Cole no grupo do WhatsApp.");}catch(x){setMsg("#relMsg","Selecione o texto e copie.",true);}}});
 document.addEventListener("click",e=>{if(e.target.closest("[data-rel]"))abrirRelatorio();});
+async function addCam(frId,st){
+  const inp=document.querySelector(`[data-addfr="${frId}"]`),msg=document.querySelector(`[data-addmsg="${frId}"]`);
+  const show=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle("err",!!err);clearTimeout(msg._t);if(t&&!err)msg._t=setTimeout(()=>{if(msg.isConnected)msg.textContent="";},4000);}};
+  const v=(inp&&inp.value||"").trim();if(!v){show("Digite a frota.",true);if(inp)inp.focus();return;}
+  const c=camPorPref(v);if(!c){show(`Caminhão ${v} não está cadastrado.`,true);inp.focus();return;}
+  const antes=c.frente_id!=null&&c.frente_id!==+frId?frNome(c.frente_id):"";
+  try{await rpc("molh_cam_status",{p_token:token,p_id:c.id,p_frente:+frId,p_status:st,p_motivo:""});
+    addVal[frId]="";await carregarCam();
+    const i2=document.querySelector(`[data-addfr="${frId}"]`);if(i2){i2.value="";i2.focus();}
+    const m2=document.querySelector(`[data-addmsg="${frId}"]`);if(m2){m2.textContent=`${c.prefixo} ${st}${antes?` (saiu da ${antes})`:""}.`;m2.classList.remove("err");m2._t=setTimeout(()=>{if(m2.isConnected)m2.textContent="";},4000);}}
+  catch(err){show(msgErr(err),true);}
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-addst]");if(b)addCam(b.dataset.fr,b.dataset.addst);});
+document.addEventListener("input",e=>{if(e.target.dataset&&e.target.dataset.addfr!=null)addVal[e.target.dataset.addfr]=e.target.value;});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.dataset&&e.target.dataset.addfr!=null){e.preventDefault();
+  const m=document.querySelector(`[data-addmsg="${e.target.dataset.addfr}"]`);if(m){m.textContent="Toque em Carregado ou Vazio.";m.classList.remove("err");}}});
 ["#trfCam","#trfMot"].forEach(id=>$(id).addEventListener("change",renderTrelas));
 setTipo("reboque");
 $("#trfPer").addEventListener("change",()=>{const d=+$("#trfPer").value;if(d>camDias){camDias=d;carregarCam();}else{camDias=d;renderTrelas();}});
