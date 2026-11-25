@@ -199,10 +199,11 @@ tr:last-child td{border-bottom:0}
 /* caminhões por frente e trelas quebradas */
 .stbtn.tipo[aria-pressed="true"]{border-color:var(--water);background:var(--water-soft);color:var(--water)}
 .fcol.wide{grid-column:span 2}@media (max-width:560px){.fcol.wide{grid-column:auto}}
-.addcam{display:flex;gap:6px;align-items:stretch}
+.addcam{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.addcam input{grid-column:1/-1}
+.addcam input.addobs{font-family:var(--body);font-size:14px;font-weight:400;letter-spacing:0;padding:6px 10px}
 .addcam input{flex:1 1 70px;min-width:0;font-family:var(--display);font-size:20px;font-weight:600;padding:6px 10px;letter-spacing:.02em}
 .addcam .btn{padding:6px 10px;white-space:nowrap}
-.btn.ok{background:var(--ok);border-color:var(--ok)} .btn.vz{background:var(--water);border-color:var(--water)}
+.btn.ok{background:var(--ok);border-color:var(--ok)} .btn.vz{background:var(--water);border-color:var(--water)} .btn.cg{background:var(--warn);border-color:var(--warn)} .btn.bs{background:var(--muted);border-color:var(--muted)}
 .addmsg:empty{display:none}
 .tiles.compact{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px}
 .tiles.compact .tile{grid-template-columns:1fr;padding:6px 8px}
@@ -223,7 +224,9 @@ tr:last-child td{border-bottom:0}
 button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 .tile .tp{font-family:var(--display);font-size:22px;font-weight:600;line-height:1;letter-spacing:.02em}
 .tile .tt{grid-column:1/-1;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
-.tile.st-carregado{border-left-color:var(--ok)}.tile.st-vazio{border-left-color:var(--water)}
+.tile.st-carregado{border-left-color:var(--ok)}.tile.st-vazio{border-left-color:var(--water)}.tile.st-carregando{border-left-color:var(--warn)}.tile.st-base{border-left-color:var(--muted)}
+.tile .ob{grid-column:1/-1;font-size:12px;font-style:italic;color:var(--fg);overflow-wrap:anywhere}
+.d.cg{background:var(--warn)}.d.bs{background:var(--muted)}
 .tile.st-parado{border-left-color:var(--late);background:color-mix(in srgb,var(--late-soft) 55%,var(--bg))}
 .tile.st-parado .tt{color:var(--late);font-weight:500}
 .fcol .vz-txt{margin:0;font-size:13px;color:var(--muted)}
@@ -238,6 +241,9 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 .stbtn.carregado[aria-pressed="true"]{border-color:var(--ok);background:var(--ok-soft);color:var(--ok)}
 .stbtn.vazio[aria-pressed="true"]{border-color:var(--water);background:var(--water-soft);color:var(--water)}
 .stbtn.parado[aria-pressed="true"]{border-color:var(--late);background:var(--late-soft);color:var(--late)}
+.stbtn.carregando[aria-pressed="true"]{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.stbtn.base[aria-pressed="true"]{border-color:var(--muted);background:var(--surface-2);color:var(--fg)}
+#dKpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .chips.sm{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}
 .chips.sm .chip{min-height:40px;justify-content:center;text-align:center}
 .mini{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
@@ -378,7 +384,7 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 
   <!-- CAMINHÕES POR FRENTE -->
   <section id="v-caminhoes" class="sec" hidden>
-    <div class="sec-head"><h2>Caminhões por frente</h2><span class="note" id="dNota"></span><button class="btn small" type="button" data-rel="1" style="margin-left:auto">Relatório (imagem)</button></div>
+    <div class="sec-head"><h2>Caminhões por frente</h2><span class="note" id="dNota"></span><span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small ghost" type="button" id="bCadCam" hidden>Cadastrar caminhão</button><button class="btn small" type="button" data-rel="1">Relatório (imagem)</button></span></div>
     <div class="kpis" id="dKpis"></div>
     <div class="board" id="board"></div>
     <div class="sec-head" style="margin-top:8px"><h2>Mudanças nas últimas 24 horas</h2><span class="note">Cada troca de frente ou de situação.</span></div>
@@ -1003,12 +1009,12 @@ async function imagemCaminhoes(){
   const now=new Date();
   const dataHora=pad(now.getDate())+"/"+pad(now.getMonth()+1)+"/"+now.getFullYear()+" "+fmtHM(now);
   const INK=[20,32,48],MUTED=[90,106,128],NAVY=[22,38,61],LINE=[214,222,232];
-  const COR={carregado:[31,138,76],vazio:[31,111,209],parado:[194,58,58]};
-  const SOFT={carregado:[220,242,228],vazio:[219,233,250],parado:[248,221,221]};
+  const COR={carregado:[31,138,76],carregando:[176,118,10],vazio:[31,111,209],base:[90,106,128],parado:[194,58,58]};
+  const SOFT={carregado:[220,242,228],carregando:[251,239,214],vazio:[219,233,250],base:[232,237,243],parado:[248,221,221]};
   const ab=C.trelas.filter(t=>t.status==="aberta").sort((a,b)=>new Date(a.quebrou_em)-new Date(b.quebrou_em));
   const nasFrentes=C.caminhoes.filter(c=>c.frente_id!=null);
-  const par=C.caminhoes.filter(c=>c.status==="parado"&&!/^Aguardando socorro/i.test(c.motivo||"")&&!ab.some(t=>t.tipo==="caminhao"&&t.caminhao_id===c.id));
-  const frentes=C.frentes.map(f=>({f,l:nasFrentes.filter(c=>c.frente_id===f.id&&c.status!=="parado").sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo))})).filter(x=>x.l.length);
+  const socCam=new Set(ab.filter(t=>t.tipo==="caminhao").map(t=>t.caminhao_id));
+  const frentes=C.frentes.map(f=>({f,l:nasFrentes.filter(c=>c.frente_id===f.id&&!socCam.has(c.id)).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo))})).filter(x=>x.l.length);
   const desenhar=PH=>{
     const doc=novoDoc(210,PH),PW=doc.internal.pageSize.getWidth(),M=10,P=3.5;
     // cabeçalho
@@ -1017,36 +1023,41 @@ async function imagemCaminhoes(){
     doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text("Gerado em "+dataHora+(perfil&&perfil.nome?" por "+perfil.nome:""),PW-M,10.5,{align:"right"});
     let y=21;
     // indicadores
-    const n=s=>nasFrentes.filter(c=>c.status===s).length;
+    const n=s=>nasFrentes.filter(c=>c.status===s&&!socCam.has(c.id)).length;
     const nCam=ab.filter(t=>t.tipo==="caminhao").length,nReb=ab.length-nCam;
-    const kp=[["Nas frentes",nasFrentes.filter(c=>c.status!=="parado").length,INK],["Carregados",n("carregado"),COR.carregado],["Vazios",n("vazio"),COR.vazio],["Caminhões aguardando socorro",nCam,nCam?COR.parado:INK],["Reboques aguardando socorro",nReb,nReb?COR.parado:INK]];
-    const kw=(PW-2*M-4*3)/5;
-    kp.forEach(([l,v,cor],k)=>{const x=M+k*(kw+3);doc.setFillColor(255,255,255);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(x,y,kw,17,2,2,"FD");
-      doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(...MUTED);doc.splitTextToSize(l.toUpperCase(),kw-6).slice(0,2).forEach((ln,i)=>doc.text(ln,x+3,y+4.6+i*2.9));
-      doc.setFont("helvetica","bold");doc.setFontSize(15);doc.setTextColor(...cor);doc.text(String(v),x+3,y+14.4);});
-    y+=23;
+    const kp=[["Nas frentes",nasFrentes.filter(c=>!socCam.has(c.id)).length,INK],["Carregados",n("carregado"),COR.carregado],["Carregando",n("carregando"),COR.carregando],["Vazios",n("vazio"),COR.vazio],["Na base",n("base"),COR.base],["Caminhões aguardando socorro",nCam,nCam?COR.parado:INK],["Reboques aguardando socorro",nReb,nReb?COR.parado:INK]];
+    const kw=(PW-2*M-(kp.length-1)*2.5)/kp.length;
+    kp.forEach(([l,v,cor],k)=>{const x=M+k*(kw+2.5);doc.setFillColor(255,255,255);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(x,y,kw,19.5,2,2,"FD");
+      doc.setFont("helvetica","normal");doc.setFontSize(6.3);doc.setTextColor(...MUTED);doc.splitTextToSize(l.toUpperCase(),kw-5).slice(0,3).forEach((ln,i)=>doc.text(ln,x+2.5,y+4.4+i*2.7));
+      doc.setFont("helvetica","bold");doc.setFontSize(15);doc.setTextColor(...cor);doc.text(String(v),x+2.5,y+17);});
+    y+=25.5;
     const secao=(titulo,nota)=>{doc.setTextColor(...INK);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(titulo,M,y+3);
       if(nota){doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...MUTED);doc.text(nota,M,y+7.5);y+=12;}else y+=7;};
     const vazio=t=>{doc.setFillColor(244,247,251);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(M,y,PW-2*M,9,2,2,"FD");
       doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(...MUTED);doc.text(t,M+P,y+5.8);y+=9+6;};
     // distribuição por frente
-    secao("DISTRIBUIÇÃO POR FRENTE","Verde: carregado · azul: vazio.");
+    secao("DISTRIBUIÇÃO POR FRENTE","Verde: carregado · amarelo: carregando · azul: vazio · cinza: na base · vermelho: parado.");
     if(!frentes.length)vazio("Nenhum caminhão lançado nas frentes.");
     else{
       const cols=3,gap=4,cw=(PW-2*M-gap*(cols-1))/cols,chW=11.4,chH=6.4,chG=1.6,porLinha=Math.max(1,Math.floor((cw-2*P+chG)/(chW+chG)));
-      const alt=frentes.map(x=>12.5+Math.ceil(x.l.length/porLinha)*(chH+chG)+P-chG);
+      const obsDe=x=>x.l.filter(c=>c.obs||(c.status==="parado"&&c.motivo)).map(c=>c.prefixo+": "+[c.status==="parado"&&c.motivo?c.motivo:"",c.obs].filter(Boolean).join(" · "));
+      doc.setFont("helvetica","normal");doc.setFontSize(6.5);
+      const obsL=frentes.map(x=>obsDe(x).flatMap(t=>doc.splitTextToSize(t,cw-2*P)));
+      const alt=frentes.map((x,k)=>12.5+Math.ceil(x.l.length/porLinha)*(chH+chG)+P-chG+(obsL[k].length?1.5+obsL[k].length*2.9:0));
       frentes.forEach((x,k)=>{const col=k%cols;if(col===0&&k>0)y+=Math.max(...alt.slice(k-cols,k))+gap;
         const ch=Math.max(...alt.slice(k-col,k-col+cols)),cx=M+col*(cw+gap);
         doc.setFillColor(255,255,255);doc.setDrawColor(...LINE);doc.setLineWidth(0.3);doc.roundedRect(cx,y,cw,ch,2,2,"FD");
         doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...INK);doc.text(x.f.nome.toUpperCase(),cx+P,y+6);
         doc.setFontSize(12);doc.setTextColor(...MUTED);doc.text(String(x.l.length),cx+cw-P,y+6.2,{align:"right"});
-        const nc=x.l.filter(c=>c.status==="carregado").length,nv=x.l.length-nc;
-        doc.setFont("helvetica","normal");doc.setFontSize(6.5);
-        let lx=cx+P;[[nc,"carregado"],[nv,"vazio"]].forEach(([v,s])=>{doc.setFillColor(...COR[s]);doc.circle(lx+1,y+9.3,0.9,"F");doc.setTextColor(...MUTED);
-          const t=v+" "+(s==="carregado"?(v===1?"carregado":"carregados"):(v===1?"vazio":"vazios"));doc.text(t,lx+2.6,y+10);lx+=doc.getTextWidth(t)+6;});
+        doc.setFont("helvetica","normal");doc.setFontSize(6.3);
+        let lx=cx+P;["carregado","carregando","vazio","base","parado"].map(st=>[x.l.filter(c=>c.status===st).length,st]).filter(([v])=>v).forEach(([v,st])=>{
+          const t=v+" "+ST_PLURAL[st][v===1?0:1];if(lx+2.6+doc.getTextWidth(t)>cx+cw-P)return;
+          doc.setFillColor(...COR[st]);doc.circle(lx+1,y+9.3,0.9,"F");doc.setTextColor(...MUTED);doc.text(t,lx+2.6,y+10);lx+=doc.getTextWidth(t)+4.5;});
         x.l.forEach((c,i)=>{const r=Math.floor(i/porLinha),q=i%porLinha,bx=cx+P+q*(chW+chG),by=y+12.5+r*(chH+chG);
           doc.setFillColor(...SOFT[c.status]);doc.roundedRect(bx,by,chW,chH,1.4,1.4,"F");
           doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(...COR[c.status]);doc.text(c.prefixo,bx+chW/2,by+4.4,{align:"center"});});
+        if(obsL[k].length){let oy=y+12.5+Math.ceil(x.l.length/porLinha)*(chH+chG)+1.6;doc.setFont("helvetica","italic");doc.setFontSize(6.5);doc.setTextColor(...INK);
+          obsL[k].forEach(ln=>{doc.text(ln,cx+P,oy);oy+=2.9;});}
       });
       y+=Math.max(...alt.slice(Math.floor((frentes.length-1)/cols)*cols))+7;
     }
@@ -1476,9 +1487,11 @@ document.addEventListener("change",e=>{
 /* ---------- caminhões por frente e trelas quebradas ---------- */
 const C={frentes:[],caminhoes:[],hist:[],trelas:[],todos:[],frTodas:[],ok:false};
 let camDias=30,camSel=null,trRes=null,camEdit=null;
-const ST_CAM={carregado:"Carregado",vazio:"Vazio",parado:"Parado"};
-const PILL_CAM={carregado:"ok",vazio:"trajeto",parado:"late"};
-const ORD_CAM={parado:0,carregado:1,vazio:2};
+const ST_CAM={carregado:"Carregado",carregando:"Carregando",vazio:"Vazio",base:"Base",parado:"Parado"};
+const ST_LISTA=["carregado","carregando","vazio","base"];
+const ST_PLURAL={carregado:["carregado","carregados"],carregando:["carregando","carregando"],vazio:["vazio","vazios"],base:["na base","na base"],parado:["parado","parados"]};
+const PILL_CAM={carregado:"ok",carregando:"warn",vazio:"trajeto",base:"none",parado:"late"};
+const ORD_CAM={parado:0,carregado:1,carregando:2,vazio:3,base:4};
 const MOT_PARADA=["Trela quebrada","Manutenção","Pneu","Aguardando carga","Abastecimento","Troca de turno","Refeição","Outro"];
 const MOT_TRELA=["Pneu furado","Vazamento de ar","Engate / pino-rei","Mangueira de ar / freio","Elétrica / iluminação","Suspensão / eixo","Rolamento / cubo","Quebra mecânica","Saiu da estrada / tombou"];
 let soTipo="reboque";
@@ -1513,14 +1526,16 @@ function renderCamSelects(){
   const fm=$("#trfMot"),mv=fm.value;const usados=[...new Set(C.trelas.map(t=>capit(t.motivo)).filter(Boolean))].sort(abcN);
   fm.innerHTML=`<option value="">Todos</option>`+usados.map(m=>`<option>${esc(m)}</option>`).join("");if([...fm.options].some(o=>o.value===mv))fm.value=mv;
 }
-const addVal={};let addFoco=null;
+const addVal={},addObs={};let addFoco=null;
 function renderDistribuicao(){
   const now=new Date(),reg=canReg(),cs=C.caminhoes.filter(c=>c.frente_id!=null),n=s=>cs.filter(c=>c.status===s).length;
   const ab=C.trelas.filter(t=>t.status==="aberta").length;
-  $("#dNota").innerHTML=reg?"Digite a frota na frente e toque em <b>Carregado</b> ou <b>Vazio</b>. Toque no caminhão para mudar a situação ou tirar da frente.":"Acompanhamento: a situação é atualizada pelos operadores.";
+  $("#bCadCam").hidden=!reg;
+  $("#dNota").innerHTML=reg?"Digite a frota na frente e toque na situação. Toque no caminhão para mudar a situação, colocar uma observação ou tirar da frente.":"Acompanhamento: a situação é atualizada pelos operadores.";
   const abL=C.trelas.filter(t=>t.status==="aberta"),nCam=abL.filter(t=>t.tipo==="caminhao").length,nReb=abL.length-nCam;
-  $("#dKpis").innerHTML=kpiH("Nas frentes",cs.length-n("parado"))+kpiH("Carregados",n("carregado"),"ok")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Caminhões aguardando socorro",nCam,nCam?"late":"")+kpiH("Reboques aguardando socorro",nReb,nReb?"late":"");
-  const foco=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.addfr:null;
+  const emSoc=c=>abL.some(t=>t.tipo==="caminhao"&&t.caminhao_id===c.id);
+  $("#dKpis").innerHTML=kpiH("Nas frentes",cs.filter(c=>!emSoc(c)).length)+kpiH("Carregados",n("carregado"),"ok")+kpiH("Carregando",n("carregando"),"warn")+kpiH("Vazios",n("vazio"),"vz")+kpiH("Na base",n("base"))+kpiH("Caminhões aguardando socorro",nCam,nCam?"late":"")+kpiH("Reboques aguardando socorro",nReb,nReb?"late":"");
+  const ae=document.activeElement,foco=ae&&ae.dataset?ae.dataset.addfr:null,focoObs=ae&&ae.dataset?ae.dataset.addobs:null;
   if(!C.ok){$("#board").innerHTML=`<div class="empty">Não foi possível carregar os caminhões. Tente atualizar a página.</div>`;}
   else if(!C.frentes.length){$("#board").innerHTML=`<div class="empty">Nenhuma frente cadastrada.${reg?" Cadastre as frentes em <b>Cadastros</b>.":""}</div>`;}
   else{
@@ -1528,14 +1543,15 @@ function renderDistribuicao(){
       const l=cs.filter(c=>c.frente_id===col.id).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo));
       const k=s=>l.filter(c=>c.status===s).length;
       return `<section class="fcol"><div class="fcol-h"><h3>${esc(col.nome)}</h3><span class="cnt">${l.length}</span></div>
-        <div class="fcol-s"><span><i class="d ok"></i>${k("carregado")} carregado${k("carregado")===1?"":"s"}</span><span><i class="d vz"></i>${k("vazio")} vazio${k("vazio")===1?"":"s"}</span><span><i class="d late"></i>${k("parado")} parado${k("parado")===1?"":"s"}</span></div>
+        <div class="fcol-s">${[["carregado","ok"],["carregando","cg"],["vazio","vz"],["base","bs"],["parado","late"]].filter(([st])=>k(st)||st==="carregado"||st==="vazio").map(([st,cl])=>`<span><i class="d ${cl}"></i>${k(st)} ${ST_PLURAL[st][k(st)===1?0:1]}</span>`).join("")}</div>
         ${reg?`<div class="addcam"><input data-addfr="${col.id}" inputmode="numeric" maxlength="20" autocomplete="off" placeholder="Frota" aria-label="Frota para a ${esc(col.nome)}" value="${esc(addVal[col.id]||"")}">
-          <button type="button" class="btn small ok" data-addst="carregado" data-fr="${col.id}">Carregado</button><button type="button" class="btn small vz" data-addst="vazio" data-fr="${col.id}">Vazio</button></div>
+          <button type="button" class="btn small ok" data-addst="carregado" data-fr="${col.id}">Carregado</button><button type="button" class="btn small cg" data-addst="carregando" data-fr="${col.id}">Carregando</button><button type="button" class="btn small vz" data-addst="vazio" data-fr="${col.id}">Vazio</button><button type="button" class="btn small bs" data-addst="base" data-fr="${col.id}">Base</button></div>
           <p class="hint addmsg" data-addmsg="${col.id}"></p>`:""}
         <div class="tiles">${l.length?l.map(c=>{const tag=reg?"button":"div";
           return `<${tag} ${reg?`type="button" data-cam="${c.id}" aria-label="Alterar ${esc(c.prefixo)}"`:""} class="tile st-${c.status}"><span class="tp">${esc(c.prefixo)}</span><span class="pill ${PILL_CAM[c.status]}">${ST_CAM[c.status]}</span>
-            <span class="tt">há ${fmtDur((now-new Date(c.status_desde))/6e4)}${c.status==="parado"&&c.motivo?" · "+esc(c.motivo):""}</span></${tag}>`;}).join(""):`<p class="vz-txt">Nenhum caminhão.</p>`}</div></section>`;}).join("");
+            <span class="tt">há ${fmtDur((now-new Date(c.status_desde))/6e4)}${c.status==="parado"&&c.motivo?" · "+esc(c.motivo):""}</span>${c.obs?`<span class="ob">Obs.: ${esc(c.obs)}</span>`:""}</${tag}>`;}).join(""):`<p class="vz-txt">Nenhum caminhão.</p>`}</div></section>`;}).join("");
     if(foco!=null){const el=document.querySelector(`[data-addfr="${foco}"]`);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
+    if(focoObs!=null){const el=document.querySelector(`[data-addobs="${focoObs}"]`);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
   }
   const h=C.hist.slice(0,80);
   $("#dHist").innerHTML=`<thead><tr><th>Quando</th><th>Caminhão</th><th>Frente</th><th>Situação</th><th>Motivo</th><th>Por</th></tr></thead><tbody>`+
@@ -1543,22 +1559,27 @@ function renderDistribuicao(){
     :`<tr><td colspan="6" style="color:var(--muted)">Nenhuma mudança nas últimas 24 horas.</td></tr>`)+"</tbody>";
 }
 function abrirCam(id){const c=byId(C.caminhoes,id);if(!c||!canReg())return;
-  camSel={id:c.id,frente:c.frente_id??null,status:c.status,motivo:c.motivo||""};renderCamBox();$("#camOv").hidden=false;}
+  camSel={id:c.id,frente:c.frente_id??null,status:c.status,motivo:c.motivo||"",obs:c.obs||""};renderCamBox();$("#camOv").hidden=false;}
 function fecharCam(){camSel=null;$("#camOv").hidden=true;$("#camBox").innerHTML="";}
 function renderCamBox(){const c=byId(C.caminhoes,camSel.id);if(!c){fecharCam();return;}
   const fr=[...C.frentes.map(f=>({id:f.id,nome:f.nome})),{id:null,nome:"Tirar da frente"}];
   const outro=camSel.motivo&&!MOT_PARADA.includes(camSel.motivo);
   $("#camBox").innerHTML=`<h2 id="camTit">${esc(c.prefixo)}<small>${ST_CAM[c.status]} há ${fmtDur((new Date()-new Date(c.status_desde))/6e4)} · ${esc(frNome(c.frente_id))}${trelasDe(c).length?" · trelas "+esc(trelasDe(c).join(", ")):""}</small></h2>
-    <div class="grp"><span class="lb">Situação</span><div class="stbtns">${["carregado","vazio","parado"].map(s=>`<button type="button" class="stbtn ${s}" data-cst="${s}" aria-pressed="${camSel.status===s}">${ST_CAM[s]}</button>`).join("")}</div></div>
+    <div class="grp"><span class="lb">Situação</span><div class="stbtns">${["carregado","carregando","vazio","base","parado"].map(s=>`<button type="button" class="stbtn ${s}" data-cst="${s}" aria-pressed="${camSel.status===s}">${ST_CAM[s]}</button>`).join("")}</div></div>
     ${camSel.status==="parado"?`<div class="grp"><span class="lb">Motivo da parada</span><div class="chips sm">${MOT_PARADA.map(m=>`<button type="button" class="chip" data-cmot="${esc(m)}" aria-pressed="${camSel.motivo===m||(m==="Outro"&&outro)}">${m}</button>`).join("")}</div>
       ${outro||camSel.motivo==="Outro"?`<input id="camMotTxt" maxlength="80" placeholder="Descreva o motivo" value="${esc(outro?camSel.motivo:"")}">`:""}</div>`:""}
+    <div class="grp"><span class="lb">Observação</span><input id="camObs" maxlength="120" placeholder="Ex.: parado carregado, aguardando mecânico" value="${esc(camSel.obs)}">
+      <div class="chips sm">${["Parado carregado","Parado vazio","Aguardando mecânico","Limpar"].map(o=>`<button type="button" class="chip" data-cobs="${o}">${o}</button>`).join("")}</div></div>
     <div class="grp"><span class="lb">Frente</span><div class="chips sm">${fr.map(f=>`<button type="button" class="chip" data-cfr="${f.id??""}" aria-pressed="${(camSel.frente??null)===f.id}">${esc(f.nome)}</button>`).join("")}</div></div>
     <div class="actions"><button class="btn big" type="button" id="camOk">Salvar</button><button class="btn ghost big" type="button" id="camCancel">Cancelar</button><span class="msg" id="camMsg" role="status"></span></div>`;
 }
 async function salvarCam(){const btn=$("#camOk");let mot=camSel.motivo;
   const t=$("#camMotTxt");if(camSel.status==="parado"&&(mot==="Outro"||(t&&!MOT_PARADA.includes(mot))))mot=t?t.value.trim()||"Outro":"Outro";
   btn.disabled=true;
-  try{await rpc("molh_cam_status",{p_token:token,p_id:camSel.id,p_frente:camSel.frente,p_status:camSel.status,p_motivo:camSel.status==="parado"?mot:""});fecharCam();await carregarCam();}
+  try{await rpc("molh_cam_status",{p_token:token,p_id:camSel.id,p_frente:camSel.frente,p_status:camSel.status,p_motivo:camSel.status==="parado"?mot:""});
+    const ob=($("#camObs")?$("#camObs").value:camSel.obs).trim();const c=byId(C.caminhoes,camSel.id);
+    if(ob!==(c&&c.obs||"")||(c&&(c.status!==camSel.status||(c.frente_id??null)!==camSel.frente)&&ob))await rpc("molh_cam_obs",{p_token:token,p_id:camSel.id,p_obs:ob});
+    fecharCam();await carregarCam();}
   catch(e){setMsg("#camMsg",msgErr(e),true);btn.disabled=false;}
 }
 function renderTrelas(){
@@ -1597,8 +1618,9 @@ function renderTrelas(){
 function textoRelatorio(){
   const now=new Date(),L=[];const ab=C.trelas.filter(t=>t.status==="aberta");
   L.push("Distribuição dos caminhões","");
-  C.frentes.forEach(f=>{const l=C.caminhoes.filter(c=>c.frente_id===f.id&&c.status!=="parado").sort((a,b)=>abcN(a.prefixo,b.prefixo));
-    if(l.length)L.push(f.nome,...l.map(c=>c.prefixo),"");});
+  const socCam=new Set(ab.filter(t=>t.tipo==="caminhao").map(t=>t.caminhao_id));
+  C.frentes.forEach(f=>{const l=C.caminhoes.filter(c=>c.frente_id===f.id&&!socCam.has(c.id)).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo));
+    if(l.length)L.push(f.nome,...l.map(c=>[c.prefixo,c.status==="carregado"?"":ST_CAM[c.status].toLowerCase(),c.obs].filter(Boolean).join(" - ")),"");});
   L.push("Aguardando socorro","");
   const rb=ab.filter(t=>t.tipo!=="caminhao"),cm=ab.filter(t=>t.tipo==="caminhao");
   if(!ab.length)L.push("Nenhum","");
@@ -1642,6 +1664,7 @@ async function salvarCamEdit(btn){const tr=btn.closest("tr"),v=k=>tr.querySelect
     setMsg(msg,"Atualizado.");camEdit=null;await carregarCam();}
   catch(e){setMsg(msg,msgErr(e),true);btn.disabled=false;}}
 
+$("#bCadCam").addEventListener("click",()=>{history.replaceState(null,"","#cadastros");aba("cadastros");setTimeout(()=>{$("#fCam").scrollIntoView({block:"center",behavior:"smooth"});$("#cPref").focus();},50);});
 $("#fCam").addEventListener("submit",async e=>{e.preventDefault();
   try{const nid=await rpc("molh_cam_salvar_caminhao",{p_token:token,p_id:null,p_prefixo:$("#cPref").value,p_descricao:$("#cDesc").value});
     if($("#cTrelas").value.trim())await rpc("molh_cam_salvar_trelas",{p_token:token,p_id:nid,p_trelas:$("#cTrelas").value});
@@ -1700,18 +1723,23 @@ async function addCam(frId,st){
   const inp=document.querySelector(`[data-addfr="${frId}"]`),msg=document.querySelector(`[data-addmsg="${frId}"]`);
   const show=(t,err)=>{if(msg){msg.textContent=t;msg.classList.toggle("err",!!err);clearTimeout(msg._t);if(t&&!err)msg._t=setTimeout(()=>{if(msg.isConnected)msg.textContent="";},4000);}};
   const v=(inp&&inp.value||"").trim();if(!v){show("Digite a frota.",true);if(inp)inp.focus();return;}
-  const c=camPorPref(v);if(!c){show(`Caminhão ${v} não está cadastrado.`,true);inp.focus();return;}
+  const c=camPorPref(v);
+  if(!c){if(msg){msg.innerHTML=`Caminhão ${esc(v)} não está cadastrado. <button type="button" class="btn small" data-cadlanc="${esc(v)}" data-fr="${frId}" data-st="${st}">Cadastrar e lançar</button>`;msg.classList.add("err");}inp.focus();return;}
   const antes=c.frente_id!=null&&c.frente_id!==+frId?frNome(c.frente_id):"";
   try{await rpc("molh_cam_status",{p_token:token,p_id:c.id,p_frente:+frId,p_status:st,p_motivo:""});
     addVal[frId]="";await carregarCam();
     const i2=document.querySelector(`[data-addfr="${frId}"]`);if(i2){i2.value="";i2.focus();}
-    const m2=document.querySelector(`[data-addmsg="${frId}"]`);if(m2){m2.textContent=`${c.prefixo} ${st}${antes?` (saiu da ${antes})`:""}.`;m2.classList.remove("err");m2._t=setTimeout(()=>{if(m2.isConnected)m2.textContent="";},4000);}}
+    const m2=document.querySelector(`[data-addmsg="${frId}"]`);if(m2){m2.textContent=`${c.prefixo} ${ST_CAM[st].toLowerCase()}${antes?` (saiu da ${antes})`:""}.`;m2.classList.remove("err");m2._t=setTimeout(()=>{if(m2.isConnected)m2.textContent="";},4000);}}
   catch(err){show(msgErr(err),true);}
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-addst]");if(b)addCam(b.dataset.fr,b.dataset.addst);});
-document.addEventListener("input",e=>{if(e.target.dataset&&e.target.dataset.addfr!=null)addVal[e.target.dataset.addfr]=e.target.value;});
-document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.dataset&&e.target.dataset.addfr!=null){e.preventDefault();
-  const m=document.querySelector(`[data-addmsg="${e.target.dataset.addfr}"]`);if(m){m.textContent="Toque em Carregado ou Vazio.";m.classList.remove("err");}}});
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-cadlanc]");if(!b)return;b.disabled=true;
+  try{await rpc("molh_cam_salvar_caminhao",{p_token:token,p_id:null,p_prefixo:b.dataset.cadlanc,p_descricao:""});await carregarCam();
+    const i=document.querySelector(`[data-addfr="${b.dataset.fr}"]`);if(i)i.value=b.dataset.cadlanc;addVal[b.dataset.fr]=b.dataset.cadlanc;await addCam(b.dataset.fr,b.dataset.st);}
+  catch(err){b.disabled=false;const m=document.querySelector(`[data-addmsg="${b.dataset.fr}"]`);if(m){m.textContent=msgErr(err);m.classList.add("err");}}});
+document.addEventListener("input",e=>{if(e.target.dataset&&e.target.dataset.addfr!=null)addVal[e.target.dataset.addfr]=e.target.value;if(e.target.dataset&&e.target.dataset.addobs!=null)addObs[e.target.dataset.addobs]=e.target.value;});
+document.addEventListener("keydown",e=>{const fid=e.target.dataset&&(e.target.dataset.addfr??e.target.dataset.addobs);if(e.key==="Enter"&&fid!=null){e.preventDefault();
+  const m=document.querySelector(`[data-addmsg="${fid}"]`);if(m){m.textContent="Toque na situação: Carregado, Carregando, Vazio ou Base.";m.classList.remove("err");}}});
 ["#trfCam","#trfMot"].forEach(id=>$(id).addEventListener("change",renderTrelas));
 setTipo("reboque");
 $("#trfPer").addEventListener("change",()=>{const d=+$("#trfPer").value;if(d>camDias){camDias=d;carregarCam();}else{camDias=d;renderTrelas();}});
@@ -1720,9 +1748,10 @@ $("#camOv").addEventListener("click",async e=>{
   const st=e.target.closest("[data-cst]");if(st){camSel.status=st.dataset.cst;if(st.dataset.cst!=="parado")camSel.motivo="";renderCamBox();return;}
   const mt=e.target.closest("[data-cmot]");if(mt){camSel.motivo=mt.dataset.cmot;renderCamBox();if(camSel.motivo==="Outro"&&$("#camMotTxt"))$("#camMotTxt").focus();return;}
   const fr=e.target.closest("[data-cfr]");if(fr){camSel.frente=fr.dataset.cfr===""?null:+fr.dataset.cfr;renderCamBox();return;}
+  const co=e.target.closest("[data-cobs]");if(co){camSel.obs=co.dataset.cobs==="Limpar"?"":co.dataset.cobs;const i=$("#camObs");if(i){i.value=camSel.obs;i.focus();}return;}
   if(e.target.id==="camOk")salvarCam();
 });
-$("#camOv").addEventListener("input",e=>{if(e.target.id==="camMotTxt"&&camSel){camSel.motivo=e.target.value.trim()||"Outro";}});
+$("#camOv").addEventListener("input",e=>{if(e.target.id==="camMotTxt"&&camSel){camSel.motivo=e.target.value.trim()||"Outro";}if(e.target.id==="camObs"&&camSel)camSel.obs=e.target.value;});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(camSel)fecharCam();$("#relOv").hidden=true;}});
 document.addEventListener("click",async e=>{
   const cm=e.target.closest("[data-cam]");if(cm){abrirCam(+cm.dataset.cam);return;}

@@ -235,3 +235,6 @@ alter table molh_trelas add column if not exists tipo text not null default 'reb
 alter table molh_trelas add column if not exists carga text not null default '';
 -- funções novas: molh_cam_salvar_trelas e molh_socorro_registrar; molh_cam_dados devolve trelas, tipo e carga
 -- (texto completo aplicado pelas migrações molh_caminhoes_trelas_cadastro e molh_socorro_reboque_caminhao no Supabase)
+
+-- 25/11/2026 (3ª parte): situações carregando e base, observação do caminhão (molh_cam_obs),
+-- observação limpa ao mudar situação/frente. Migração no Supabase: molh_caminhoes_carregando_base_obs.
