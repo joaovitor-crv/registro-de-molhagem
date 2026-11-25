@@ -247,6 +247,9 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
 .stbtn.vazio[aria-pressed="true"]{border-color:var(--water);background:var(--water-soft);color:var(--water)}
 #dKpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .chips.sm{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}
+.grp.rep{border-top:1px solid var(--line);padding-top:12px}.grp.rep>#camRep{width:100%}
+.repadd{display:flex;gap:8px;margin:8px 0}.repadd input{flex:1;min-width:0}
+.grp.rep .hint{display:block;font-size:13px;color:var(--muted);margin:6px 0}
 .chips.sm .chip{min-height:40px;justify-content:center;text-align:center}
 .mini{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
 .mini h3{margin:0 0 4px;font-size:14px;font-weight:600}
@@ -1576,7 +1579,7 @@ const OBS_CAM=["Trajeto solo úmido","Fiscalização","Outros"];
 function abrirCam(id){const c=byId(C.caminhoes,id);if(!c||!canReg())return;
   const par=c.status==="parado",txt=par?(c.motivo||""):(c.obs||"");
   const ob=!txt?"":(OBS_CAM.includes(txt)&&txt!=="Outros"?txt:"Outros");
-  camSel={id:c.id,frente:c.frente_id??null,sit:par?"parado_"+(c.carga||"carregado"):c.status,ob,obTxt:ob==="Outros"?txt:"",local:par?(c.obs||""):""};
+  camSel={id:c.id,frente:c.frente_id??null,sit:par?"parado_"+(c.carga||"carregado"):c.status,ob,obTxt:ob==="Outros"?txt:"",local:par?(c.obs||""):"",rep:false,outros:[]};
   renderCamBox();$("#camOv").hidden=false;}
 function fecharCam(){camSel=null;$("#camOv").hidden=true;$("#camBox").innerHTML="";}
 function renderCamBox(){const c=byId(C.caminhoes,camSel.id);if(!c){fecharCam();return;}
@@ -1588,20 +1591,32 @@ function renderCamBox(){const c=byId(C.caminhoes,camSel.id);if(!c){fecharCam();r
       ${camSel.ob==="Outros"?`<input id="camObTxt" maxlength="80" placeholder="Digite a observação" value="${esc(camSel.obTxt)}">`:""}
       ${par?`<input id="camLocal" maxlength="120" placeholder="Local / ponto de referência (ex.: Venda Amarela)" value="${esc(camSel.local)}">`:""}</div>
     <div class="grp"><span class="lb">Frente</span><div class="chips sm">${fr.map(f=>`<button type="button" class="chip" data-cfr="${f.id??""}" aria-pressed="${(camSel.frente??null)===f.id}">${esc(f.nome)}</button>`).join("")}</div></div>
-    <div class="actions"><button class="btn big" type="button" id="camOk">Salvar</button><button class="btn ghost big" type="button" id="camCancel">Cancelar</button><span class="msg" id="camMsg" role="status"></span></div>`;
+    <div class="grp rep"><button type="button" class="chip" id="camRep" aria-pressed="${camSel.rep}"><span class="bx">${camSel.rep?"✓":""}</span>Reproduzir para outras frotas</button>
+      ${camSel.rep?(()=>{const sug=C.caminhoes.filter(x=>x.id!==c.id&&x.ativo!==false&&(camSel.outros.includes(x.id)||(camSel.frente!=null&&x.frente_id===camSel.frente))).sort((a,b)=>String(a.prefixo).localeCompare(String(b.prefixo),"pt",{numeric:true}));
+        return `<div class="repadd"><input id="camRepTxt" list="camRepLista" inputmode="numeric" maxlength="20" placeholder="Digite a frota e toque em Adicionar"><button type="button" class="btn ghost" id="camRepAdd">Adicionar</button></div>
+        <datalist id="camRepLista">${C.caminhoes.filter(x=>x.id!==c.id&&x.ativo!==false).map(x=>`<option value="${esc(x.prefixo)}">`).join("")}</datalist>
+        ${sug.length?`<span class="hint">${camSel.frente!=null?"Frotas da "+esc(frNome(camSel.frente))+" e as adicionadas":"Frotas adicionadas"} — toque para marcar:</span><div class="chips sm">${sug.map(x=>`<button type="button" class="chip" data-crep="${x.id}" aria-pressed="${camSel.outros.includes(x.id)}">${esc(x.prefixo)}</button>`).join("")}</div>`:""}
+        <span class="hint">${camSel.outros.length?camSel.outros.length+" frota(s) selecionada(s): recebem a mesma situação, observação"+(par?", local":"")+" e frente.":"Nenhuma frota selecionada."}</span>`;})():""}
+    </div>
+    <div class="actions"><button class="btn big" type="button" id="camOk">${camSel.rep&&camSel.outros.length?"Salvar ("+(camSel.outros.length+1)+" frotas)":"Salvar"}</button><button class="btn ghost big" type="button" id="camCancel">Cancelar</button><span class="msg" id="camMsg" role="status"></span></div>`;
 }
 async function salvarCam(){const btn=$("#camOk"),s=camSel,par=s.sit.startsWith("parado_");
   const ob=s.ob==="Outros"?s.obTxt.trim():s.ob;
   if(s.ob==="Outros"&&!ob){setMsg("#camMsg","Digite a observação.",true);$("#camObTxt")&&$("#camObTxt").focus();return;}
+  if(s.rep&&s.outros.length&&!confirm("Aplicar o mesmo apontamento em "+(s.outros.length+1)+" frotas?"))return;
   btn.disabled=true;
+  const ids=[s.id,...(s.rep?s.outros:[])],ok=[];
   try{
-    if(par){await rpc("molh_cam_status",{p_token:token,p_id:s.id,p_frente:s.frente,p_status:"parado",p_motivo:ob});
-      await rpc("molh_cam_carga",{p_token:token,p_id:s.id,p_carga:s.sit.slice(7)});
-      await rpc("molh_cam_obs",{p_token:token,p_id:s.id,p_obs:s.local.trim()});}
-    else{await rpc("molh_cam_status",{p_token:token,p_id:s.id,p_frente:s.frente,p_status:s.sit,p_motivo:""});
-      await rpc("molh_cam_obs",{p_token:token,p_id:s.id,p_obs:ob});}
+    for(const id of ids){
+      if(par){await rpc("molh_cam_status",{p_token:token,p_id:id,p_frente:s.frente,p_status:"parado",p_motivo:ob});
+        await rpc("molh_cam_carga",{p_token:token,p_id:id,p_carga:s.sit.slice(7)});
+        await rpc("molh_cam_obs",{p_token:token,p_id:id,p_obs:s.local.trim()});}
+      else{await rpc("molh_cam_status",{p_token:token,p_id:id,p_frente:s.frente,p_status:s.sit,p_motivo:""});
+        await rpc("molh_cam_obs",{p_token:token,p_id:id,p_obs:ob});}
+      ok.push(id);}
     fecharCam();await carregarCam();}
-  catch(e){setMsg("#camMsg",msgErr(e),true);btn.disabled=false;}
+  catch(e){const pre=ok.map(i=>byId(C.caminhoes,i)?.prefixo).filter(Boolean);
+    setMsg("#camMsg",(pre.length?"Salvo em "+pre.join(", ")+". ":"")+msgErr(e),true);btn.disabled=false;if(ok.length)carregarCam();}
 }
 function renderTrelas(){
   const now=new Date(),reg=canReg(),adm=canAdmin();
@@ -1780,8 +1795,18 @@ $("#camOv").addEventListener("click",async e=>{
   const st=e.target.closest("[data-csit]");if(st){camSel.sit=st.dataset.csit;renderCamBox();if(camSel.sit.startsWith("parado_")&&$("#camLocal"))$("#camLocal").focus();return;}
   const ob=e.target.closest("[data-cob]");if(ob){camSel.ob=camSel.ob===ob.dataset.cob?"":ob.dataset.cob;renderCamBox();if(camSel.ob==="Outros"&&$("#camObTxt"))$("#camObTxt").focus();return;}
   const fr=e.target.closest("[data-cfr]");if(fr){camSel.frente=fr.dataset.cfr===""?null:+fr.dataset.cfr;renderCamBox();return;}
+  if(e.target.closest("#camRep")){camSel.rep=!camSel.rep;renderCamBox();if(camSel.rep&&$("#camRepTxt"))$("#camRepTxt").focus();return;}
+  const rp=e.target.closest("[data-crep]");if(rp){const id=+rp.dataset.crep,i=camSel.outros.indexOf(id);i<0?camSel.outros.push(id):camSel.outros.splice(i,1);renderCamBox();return;}
+  if(e.target.id==="camRepAdd"){repAdd();return;}
   if(e.target.id==="camOk")salvarCam();
 });
+function repAdd(){const inp=$("#camRepTxt");if(!inp)return;const v=inp.value.trim();if(!v)return;
+  const c=C.caminhoes.find(x=>String(x.prefixo)===v&&x.ativo!==false);
+  if(!c){setMsg("#camMsg","Frota "+v+" não cadastrada.",true);inp.select();return;}
+  if(c.id===camSel.id){setMsg("#camMsg","Essa é a própria frota.",true);inp.select();return;}
+  if(!camSel.outros.includes(c.id))camSel.outros.push(c.id);
+  renderCamBox();$("#camRepTxt")&&$("#camRepTxt").focus();}
+$("#camOv").addEventListener("keydown",e=>{if(e.target.id==="camRepTxt"&&e.key==="Enter"){e.preventDefault();repAdd();}});
 $("#camOv").addEventListener("input",e=>{if(!camSel)return;if(e.target.id==="camObTxt")camSel.obTxt=e.target.value;if(e.target.id==="camLocal")camSel.local=e.target.value;});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(camSel)fecharCam();$("#relOv").hidden=true;$("#txtOv").hidden=true;}});
 document.addEventListener("click",async e=>{
