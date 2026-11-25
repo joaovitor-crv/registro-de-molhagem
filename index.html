@@ -406,7 +406,7 @@ button.tile{cursor:pointer}button.tile:hover{border-color:var(--water)}
         <label>Frente<select id="trFrente"></select></label>
         <label>Carga<select id="trCarga"><option value="carregado">Carregado</option><option value="vazio">Vazio</option></select></label>
         <label class="full">Motivo<input id="trMotivo" maxlength="60" list="trMotList" autocomplete="off" placeholder="Ex.: pneu furado, vazamento de ar"><datalist id="trMotList"></datalist></label>
-        <label class="full">Local (opcional)<input id="trLocal" maxlength="120" list="trLocais" placeholder="Ex.: estrada da usina, km 4"><datalist id="trLocais"></datalist></label>
+        <label class="full">Local (ponto de referência)<input id="trLocal" maxlength="120" list="trLocais" placeholder="Ex.: estrada da usina, km 4, perto da balança"><datalist id="trLocais"></datalist></label>
         <label>Data e hora<input id="trQuando" type="datetime-local"></label>
         <label>Responsável pela informação<input id="trResp" maxlength="80" placeholder="Opcional: quem passou a informação" autocomplete="off"></label>
         <label class="full">Observação<input id="trObs" maxlength="300" placeholder="Opcional"></label>
@@ -549,7 +549,7 @@ const ERROS={
   CAMINHAO_INVALIDO:"Esse caminhão foi removido. Atualize a página.",
   FRENTE_INVALIDA:"Essa frente foi removida. Atualize a página.",
   STATUS_INVALIDO:"Situação inválida.",
-  LOCAL_VAZIO:"Informe o local onde a trela quebrou.",
+  LOCAL_VAZIO:"Informe o local (ponto de referência) onde quebrou.",
   TRELA_RESOLVIDA:"Esse registro já foi marcado como resolvido. Atualize a página.",
   TRELA_VAZIA:"Digite o número da trela.",
   CAMINHAO_VAZIO:"Digite o número do caminhão.",
@@ -1046,7 +1046,8 @@ async function imagemCaminhoes(){
     if(!frentes.length)vazio("Nenhum caminhão lançado nas frentes.");
     else{
       const cols=3,gap=4,cw=(PW-2*M-gap*(cols-1))/cols,chW=11.4,chH=6.4,chG=1.6,porLinha=Math.max(1,Math.floor((cw-2*P+chG)/(chW+chG)));
-      const obsDe=x=>x.l.filter(c=>c.obs||(c.status==="parado"&&c.motivo)).map(c=>c.prefixo+": "+[c.status==="parado"&&c.motivo?c.motivo:"",c.obs].filter(Boolean).join(" · "));
+      const obsDe=x=>x.l.filter(c=>c.obs||(c.status==="parado"&&c.motivo)).map(c=>{const so=c.status==="parado"?socDoCam(c):null;
+        return c.prefixo+": "+[...(so?["parado "+(so.carga||"")].concat(partesSocorro(so).slice(1)):[c.status==="parado"&&c.motivo?c.motivo:""]),c.obs].filter(Boolean).join(" · ");});
       doc.setFont("helvetica","normal");doc.setFontSize(6.5);
       const obsL=frentes.map(x=>obsDe(x).flatMap(t=>doc.splitTextToSize(t,cw-2*P)));
       const alt=frentes.map((x,k)=>12.5+Math.ceil(x.l.length/porLinha)*(chH+chG)+P-chG+(obsL[k].length?1.5+obsL[k].length*2.9:0));
@@ -1507,6 +1508,9 @@ const camPorTrela=v=>{v=String(v||"").trim().toLowerCase();return v?C.caminhoes.
 const cargaTxt=t=>!t.carga?"":(t.tipo==="caminhao"?t.carga:(t.carga==="carregado"?"carregada":"vazia"));
 const unidade=t=>t.tipo==="caminhao"?"Caminhão "+camPref(t.caminhao_id):"Trela "+(t.trela||"?");
 const capit=x=>{x=String(x||"").trim();return x?x[0].toUpperCase()+x.slice(1):x;};
+const socDoCam=c=>{const ab=C.trelas.filter(t=>t.status==="aberta"&&t.caminhao_id===c.id);return ab.find(t=>t.tipo==="caminhao")||ab[0]||null;};
+/* partes da linha de um caminhão parado aguardando socorro: carga, motivo e local */
+const partesSocorro=t=>[t.carga||"","aguardando socorro: "+(t.tipo!=="caminhao"?"trela "+(t.trela||"?")+" ":"")+String(t.motivo||"").toLowerCase(),t.local?"local: "+t.local:""];
 const abcN=(x,y)=>String(x||"").localeCompare(String(y||""),"pt-BR",{numeric:true,sensitivity:"base"});
 const camPref=id=>{const c=C.todos.find(x=>x.id===id);return c?c.prefixo:"—";};
 const frNome=id=>{if(id==null)return "Sem frente";const f=C.frTodas.find(x=>x.id===id);return f?f.nome:"—";};
@@ -1626,14 +1630,15 @@ function textoRelatorio(){
   L.push("Distribuição dos caminhões","");
   const socCam=new Set(ab.filter(t=>t.tipo==="caminhao").map(t=>t.caminhao_id));
   C.frentes.forEach(f=>{const l=C.caminhoes.filter(c=>c.frente_id===f.id).sort((a,b)=>(ORD_CAM[a.status]-ORD_CAM[b.status])||abcN(a.prefixo,b.prefixo));
-    if(l.length)L.push(f.nome+" - total "+l.length,...l.map(c=>[c.prefixo,ST_CAM[c.status].toLowerCase(),c.status==="parado"&&c.motivo?c.motivo.toLowerCase():"",c.obs].filter(Boolean).join(" - ")),"");});
+    if(l.length)L.push(f.nome+" - total "+l.length,...l.map(c=>{const so=c.status==="parado"?socDoCam(c):null;
+      return [c.prefixo,ST_CAM[c.status].toLowerCase(),...(so?partesSocorro(so):[c.status==="parado"&&c.motivo?c.motivo.toLowerCase():""]),c.obs].filter(Boolean).join(" - ");}),"");});
   L.push("Aguardando socorro","");
   const rb=ab.filter(t=>t.tipo!=="caminhao"),cm=ab.filter(t=>t.tipo==="caminhao");
   if(!ab.length)L.push("Nenhum","");
   if(rb.length){L.push("Reboque","");
     [...C.frentes.map(f=>f.id),null].forEach(id=>{const l=rb.filter(t=>(t.frente_id??null)===id);if(!l.length)return;
-      L.push(frNome(id),...l.map(t=>"Trela "+(t.trela||"?")+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t)].filter(Boolean).join(" - ")),"");});}
-  if(cm.length)L.push("Caminhão",...cm.map(t=>camPref(t.caminhao_id)+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.frente_id!=null?frNome(t.frente_id):""].filter(Boolean).join(" - ")),"");
+      L.push(frNome(id),...l.map(t=>"Trela "+(t.trela||"?")+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.local?"local: "+t.local:""].filter(Boolean).join(" - ")),"");});}
+  if(cm.length)L.push("Caminhão",...cm.map(t=>camPref(t.caminhao_id)+" "+[String(t.motivo||"").toLowerCase(),cargaTxt(t),t.frente_id!=null?frNome(t.frente_id):"",t.local?"local: "+t.local:""].filter(Boolean).join(" - ")),"");
   return L.join("\n").replace(/\n+$/,"");
 }
 function abrirResolver(id){const t=C.trelas.find(x=>x.id===id);if(!t)return;trRes=id;
@@ -1703,6 +1708,7 @@ $("#fTrela").addEventListener("submit",async e=>{e.preventDefault();
   if(soTipo==="caminhao"&&!cv){setMsg("#trMsg",ERROS.CAMINHAO_VAZIO,true);$("#trCam").focus();return;}
   if(cv&&!camPorPref(cv)){setMsg("#trMsg",`Caminhão ${cv} não está cadastrado. Confira o número ou cadastre em Cadastros.`,true);$("#trCam").focus();return;}
   if(!$("#trMotivo").value.trim()){setMsg("#trMsg",ERROS.MOTIVO_VAZIO,true);$("#trMotivo").focus();return;}
+  if(!$("#trLocal").value.trim()){setMsg("#trMsg",ERROS.LOCAL_VAZIO,true);$("#trLocal").focus();return;}
   if(!q){setMsg("#trMsg","Informe a data e a hora.",true);return;}
   $("#trSave").disabled=true;
   try{await rpc("molh_socorro_registrar",{p_token:token,p_tipo:soTipo,p_trela:soTipo==="reboque"?tv:"",p_caminhao:cv,p_frente:$("#trFrente").value?+$("#trFrente").value:null,
